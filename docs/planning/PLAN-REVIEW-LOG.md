@@ -12,13 +12,13 @@ Round 1 runs two independent Codex reviews (A: lensed; B: fresh session); rounds
 2. **The ID-window design has no snapshot consistency.** Successive `offset` windows can duplicate or skip records if the backing catalogue changes between requests; the plan acknowledges this only for future live data despite `indexed_at` already representing mutable source state.  
    **Fix:** Return `indexed_at` as a snapshot/version token and require it on subsequent windows, rejecting or restarting when it changes.
 
-3. **Inclusive range buckets overlap.** Existing range filtering includes both `min` and `max` ([search.service.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/services/search.service.ts:102)), while facet buckets share adjacent edges ([search-fields.config.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/models/search-fields.config.ts:48)); an instrument exactly at 100,000,000 belongs to two buckets.  
+3. **Inclusive range buckets overlap.** Existing range filtering includes both `min` and `max` ([search.service.ts](../../api/src/services/search.service.ts#L102)), while facet buckets share adjacent edges ([search-fields.config.ts](../../api/src/models/search-fields.config.ts#L48)); an instrument exactly at 100,000,000 belongs to two buckets.  
    **Fix:** Define non-overlapping integer bounds explicitly, such as `0–99,999,999` and `100,000,000–499,999,999`, and test boundary values.
 
 4. **Zero-count disabling can trap selected filters.** If live facet counts make a currently selected option zero and the checkbox is disabled, the user may be unable to untick the option that caused the dead end.  
    **Fix:** Never disable a selected option; zero-count unselected options may be disabled, while selected ones must remain removable.
 
-5. **The dedupe algorithm is internally inconsistent about `OR`.** It says lowercase first but “keep `OR`”; after lowercasing, operator `OR` is indistinguishable from the ordinary word “or.” Existing search parsing recognizes only uppercase, whitespace-delimited `OR` ([search.service.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/services/search.service.ts:134)).  
+5. **The dedupe algorithm is internally inconsistent about `OR`.** It says lowercase first but “keep `OR`”; after lowercasing, operator `OR` is indistinguishable from the ordinary word “or.” Existing search parsing recognizes only uppercase, whitespace-delimited `OR` ([search.service.ts](../../api/src/services/search.service.ts#L134)).  
    **Fix:** Specify tokenization before normalization and preserve an explicit operator token; add tests for `OR`, `or`, substrings, repeated operators, and leading/trailing operators.
 
 6. **Blank and stopword-only searches can pollute the log.** Maximum term length is specified, but minimum/nonblank semantics are not; terms such as `" the asx "` normalize to an empty dedupe key. Initial catalogue loading could also be logged accidentally if it uses `intent: "search"`.  
@@ -64,16 +64,16 @@ Round 1 runs two independent Codex reviews (A: lensed; B: fresh session); rounds
 
 ## 3. EXECUTOR — buildability against this codebase
 
-1. **`size` has two incompatible meanings.** In the current query model it is page size ([search-query.model.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/models/search-query.model.ts:27)); in `/search/index` it is the number of inlined documents, while `ids` independently needs up to 1,000 results. “Same body as `/search` plus” therefore cannot be implemented unambiguously by reusing `SearchService`.  
+1. **`size` has two incompatible meanings.** In the current query model it is page size ([search-query.model.ts](../../api/src/models/search-query.model.ts#L27)); in `/search/index` it is the number of inlined documents, while `ids` independently needs up to 1,000 results. “Same body as `/search` plus” therefore cannot be implemented unambiguously by reusing `SearchService`.  
    **Fix:** Define separate `documentSize` and `idWindowSize`, or make the index response use `offset`/`limit` consistently and slice documents independently.
 
-2. **`SearchService` exposes only already-paginated documents.** Its filter, ranking, ordering, and pagination operations are private, and `search()` paginates before returning ([search.service.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/services/search.service.ts:28)). The proposed service cannot obtain an arbitrary ordered ID window plus a differently sized document batch without abusing `size`, rerunning searches, or refactoring existing code.  
+2. **`SearchService` exposes only already-paginated documents.** Its filter, ranking, ordering, and pagination operations are private, and `search()` paginates before returning ([search.service.ts](../../api/src/services/search.service.ts#L28)). The proposed service cannot obtain an arbitrary ordered ID window plus a differently sized document batch without abusing `size`, rerunning searches, or refactoring existing code.  
    **Fix:** Add an explicit internal `searchAll`/`buildResultSet` primitive returning the ordered full match set, then preserve the old `/search` behavior by paginating its output.
 
 3. **The index response contract is incomplete.** The exact `facets` shape, `nextOffset` null/omission semantics, `indexed_at`, field-selection behavior, include-order/duplicates, and behavior when `documents` is requested without `ids` are all unstated.  
    **Fix:** Add request/response TypeScript types and complete JSON examples for full, counts-only, and continuation requests before implementation.
 
-4. **Facet semantics for multi-select pending filters are unspecified.** Existing `FacetsService` replaces a facet’s entire selection with each single candidate value ([facets.service.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/services/facets.service.ts:103)); the UI needs a defined answer for whether counts mean “candidate alone,” “candidate added to selected OR values,” or total section matches.  
+4. **Facet semantics for multi-select pending filters are unspecified.** Existing `FacetsService` replaces a facet’s entire selection with each single candidate value ([facets.service.ts](../../api/src/services/facets.service.ts#L103)); the UI needs a defined answer for whether counts mean “candidate alone,” “candidate added to selected OR values,” or total section matches.  
    **Fix:** Specify disjunctive facet-count semantics for selected and unselected options and write truth-table tests before wiring the UI.
 
 5. **“Reuse `FacetsService`” can cause hundreds of full searches per request.** Each facet value invokes `SearchService.search`; issuer alone may produce many calls, multiplied across seven facets and every filter tick.  
@@ -85,13 +85,13 @@ Round 1 runs two independent Codex reviews (A: lensed; B: fresh session); rounds
 7. **Batch endpoint edge behavior is undefined.** Duplicate IDs, case normalization, empty arrays, mixed valid/invalid IDs, maximum encoded length, and whether `missing` preserves requested order are left for the builder to guess.  
    **Fix:** Specify canonical case-insensitive lookup, duplicate policy, output ordering, empty-body behavior, and `missing` ordering with examples and tests.
 
-8. **CORS requirements conflict with current global middleware.** The app currently allows every origin globally ([main.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/main.ts:71)); limiting only new endpoints requires route-aware policy, yet the roadmap says existing wiring should barely change. Custom client-ID headers would also require preflight configuration.  
+8. **CORS requirements conflict with current global middleware.** The app currently allows every origin globally ([main.ts](../../api/src/main.ts#L71)); limiting only new endpoints requires route-aware policy, yet the roadmap says existing wiring should barely change. Custom client-ID headers would also require preflight configuration.  
    **Fix:** Define one app-wide development CORS policy or explicitly implement route-aware middleware including allowed methods and headers; do not call CORS a security boundary.
 
-9. **Body-size enforcement has no specified threshold or placement.** The existing body parser is global ([main.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/main.ts:75)); endpoint-specific limits cannot be inferred from “body size.”  
+9. **Body-size enforcement has no specified threshold or placement.** The existing body parser is global ([main.ts](../../api/src/main.ts#L75)); endpoint-specific limits cannot be inferred from “body size.”  
    **Fix:** State the byte limit and whether it applies globally or only to new routes, then add an over-limit integration test.
 
-10. **Validation policy conflicts with “existing behavior unchanged.”** Existing validation ignores unknown keys and accepts `from: 0`, which pagination silently treats as page 1 because of `from || DEFAULT_PAGE` ([search-query.validation.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/validation/search-query.validation.ts:26), [search.service.ts](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/services/search.service.ts:196)). Reusing it for a stricter endpoint leaves unclear which quirks are retained.  
+10. **Validation policy conflicts with “existing behavior unchanged.”** Existing validation ignores unknown keys and accepts `from: 0`, which pagination silently treats as page 1 because of `from || DEFAULT_PAGE` ([search-query.validation.ts](../../api/src/validation/search-query.validation.ts#L26), [search.service.ts](../../api/src/services/search.service.ts#L196)). Reusing it for a stricter endpoint leaves unclear which quirks are retained.  
     **Fix:** Create endpoint-specific strict validation and explicitly characterize legacy quirks without copying them into the new contract.
 
 11. **Sort stability is not contractual.** Equal explicit sort values return `0`, relying on JavaScript stable sort and the pre-existing ranked/default order; pagination needs a deterministic tie-breaker to prevent ambiguous page/window boundaries.  
@@ -276,7 +276,7 @@ Both reviews converged on the real defects; PLAN.md rewritten. Verified one clai
 
 ## 1. CONTRARIAN — failure modes
 
-1. **Idempotency reintroduces an unbounded-memory attack.** The plan bounds keys, client sets, and spellings, but idempotency requires retaining every `submission_id`; that registry has no cap or expiry ([PLAN.md:21](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:21)).  
+1. **Idempotency reintroduces an unbounded-memory attack.** The plan bounds keys, client sets, and spellings, but idempotency requires retaining every `submission_id`; that registry has no cap or expiry ([PLAN.md:21](../../docs/planning/PLAN.md#L21)).  
    **Fix:** Define a bounded global submission-ID registry with TTL and deterministic eviction, and test expiry, eviction, and replay behavior.
 
 2. **The dedupe key is not result-equivalent, so memoised counts can be wrong.** Dropping `and/the/of/for/asx` changes the current search text, because `SearchService` does not ignore stopwords; two spellings assigned the same key can therefore have different result counts. Memoising `unfiltered_count` “per key” lets the first spelling dictate whether every variant is popular or zero-result.  
@@ -288,10 +288,10 @@ Both reviews converged on the real defects; PLAN.md rewritten. Verified one clai
 4. **Rate-limited idempotency behavior is ambiguous.** `/searches` returns `202` when dropped, but it is unspecified whether the rejected `submission_id` becomes consumed; a retry using the same ID could either remain dropped or later become logged.  
    **Fix:** State that rate-limited IDs are either recorded as permanently consumed or not recorded at all, and test the selected behavior.
 
-5. **The UUID header contract is unclear when missing.** Popularity requires a client identity, but `/searches` does not explicitly say whether `X-Client-Id` is mandatory or what response missing/invalid values receive ([PLAN.md:71](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:71)).  
+5. **The UUID header contract is unclear when missing.** Popularity requires a client identity, but `/searches` does not explicitly say whether `X-Client-Id` is mandatory or what response missing/invalid values receive ([PLAN.md:71](../../docs/planning/PLAN.md#L71)).  
    **Fix:** Make `X-Client-Id` required for `/searches`, specify the error response, and distinguish validation failures from silent rate-limit drops.
 
-6. **Cache invalidation still cannot reliably discover a restarted API.** Including `indexed_at` in cache keys works only after a response reveals the new value; a repeated search served forever from `staleTime: Infinity` makes no request and can retain the old catalogue indefinitely ([PLAN.md:26](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:26)).  
+6. **Cache invalidation still cannot reliably discover a restarted API.** Including `indexed_at` in cache keys works only after a response reveals the new value; a repeated search served forever from `staleTime: Infinity` makes no request and can retain the old catalogue indefinitely ([PLAN.md:26](../../docs/planning/PLAN.md#L26)).  
    **Fix:** Fetch a lightweight version/health token on startup and API reconnection, or give the catalogue-version query finite freshness and invalidate index/document caches when it changes.
 
 ## 2. FIRST-PRINCIPLES — whether the accepted fixes solve the original problems
@@ -313,7 +313,7 @@ Both reviews converged on the real defects; PLAN.md rewritten. Verified one clai
 
 ## 3. EXECUTOR — buildability against this codebase
 
-1. **Facet aggregation does not say how zero-count values remain present.** Aggregating only the result passes yields values that occur in those passes; the UI requires all possible options, including zero-count ones ([PLAN.md:19](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:19), [PLAN.md:32](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:32)).  
+1. **Facet aggregation does not say how zero-count values remain present.** Aggregating only the result passes yields values that occur in those passes; the UI requires all possible options, including zero-count ones ([PLAN.md:19](../../docs/planning/PLAN.md#L19), [PLAN.md:32](../../docs/planning/PLAN.md#L32)).  
    **Fix:** Initialize each facet from the repository-wide value universe/bucket configuration, then overlay aggregated counts and emit explicit zeros.
 
 2. **The `include` invariants remain incomplete despite the claim that every combination is defined.** `documents` requires `ids`, but the contract does not define whether `id_offset`, `id_limit`, and `document_limit` are honored or rejected when their associated fields are excluded.  
@@ -325,7 +325,7 @@ Both reviews converged on the real defects; PLAN.md rewritten. Verified one clai
 4. **Batch hydration lacks a request-side snapshot.** Comparing the returned `indexed_at` after downloading prevents committing stale documents, but the server still performs work and the response contract does not explicitly require the client to reject the batch atomically.  
    **Fix:** Add optional/required `snapshot` to `BatchRequest` with the same `409` behavior, or explicitly mandate pre-commit version comparison and restart.
 
-5. **“Exact match” conflicts with the existing case-insensitive instrument lookup.** The batch contract demands uppercase format and exact matching, while `getById` currently ignores case ([search.service.ts:47](/Users/israelperez/Repos/betashares/invest-code-challenge-search/api/src/services/search.service.ts:47)). Reusing the service silently violates the new contract.  
+5. **“Exact match” conflicts with the existing case-insensitive instrument lookup.** The batch contract demands uppercase format and exact matching, while `getById` currently ignores case ([search.service.ts:47](../../api/src/services/search.service.ts#L47)). Reusing the service silently violates the new contract.  
    **Fix:** State that batch validation canonicalizes uppercase before the existing lookup, or implement a separate exact repository lookup and test lowercase rejection.
 
 6. **The full-set refactor needs a precise ordering invariant.** “Deterministic tie-breaker on every order” must be appended after the existing ranking/default comparators; replacing stable ties directly with ID order could alter legacy results despite otherwise identical filtering.  
@@ -342,7 +342,7 @@ Both reviews converged on the real defects; PLAN.md rewritten. Verified one clai
 
 ## 4. OUTSIDER — what the hiring panel may question
 
-1. **ADR 0002 is now stale relative to the binding plan.** It still says “least-used eviction,” only mentions per-IP rate limiting, and omits the bounded clients/spellings, per-client rate limit, insights threshold, feature flag, and exact normalization rules ([ADR 0002:15](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/adr/0002-server-side-search-log.md:15)).  
+1. **ADR 0002 is now stale relative to the binding plan.** It still says “least-used eviction,” only mentions per-IP rate limiting, and omits the bounded clients/spellings, per-client rate limit, insights threshold, feature flag, and exact normalization rules ([ADR 0002:15](../../docs/adr/0002-server-side-search-log.md#L15)).  
    **Fix:** Update the ADR consequences to match the concrete PLAN contract or explicitly defer to PLAN.md for those mechanics.
 
 2. **“Fire-and-forget” may be misread as unreliable logging.** Reviewers may reasonably ask whether navigation, component unmounting, or aborted requests loses submitted searches.  
@@ -377,7 +377,7 @@ VERDICT: REVISE
 
 ## 1. CONTRARIAN — failure modes
 
-1. **The per-key spelling cap can corrupt popular/zero-result classification.** Only 10 spellings are retained, but classification now depends on per-spelling `unfiltered_count`; the plan does not say which spelling is discarded or whether a discarded positive-result spelling remains represented ([PLAN.md:21](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:21)).  
+1. **The per-key spelling cap can corrupt popular/zero-result classification.** Only 10 spellings are retained, but classification now depends on per-spelling `unfiltered_count`; the plan does not say which spelling is discarded or whether a discarded positive-result spelling remains represented ([PLAN.md:21](../../docs/planning/PLAN.md#L21)).  
    **Fix:** Define deterministic spelling eviction and retain bounded key-level flags/counters such as `has_positive_result`, so discarded variants cannot turn a mixed key into a false zero-result insight.
 
 2. **Idempotency is now bounded, but only within a 10-minute window.** Calling `/searches` simply “idempotent” overstates the guarantee because a delayed replay after TTL can be counted twice.  
@@ -405,16 +405,16 @@ VERDICT: REVISE
 
 ## 3. EXECUTOR — buildability against this codebase
 
-1. **The roadmap still specifies the rejected, unbuildable index contract.** It says “same body as `/search`,” uses `offset`, overloads `size`, returns `nextOffset`, and omits snapshots ([roadmap.md:18](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:18)); PLAN.md instead defines `id_offset`, `id_limit`, `document_limit`, `next_id_offset`, and `snapshot`.  
+1. **The roadmap still specifies the rejected, unbuildable index contract.** It says “same body as `/search`,” uses `offset`, overloads `size`, returns `nextOffset`, and omits snapshots ([roadmap.md:18](../../docs/roadmap.md#L18)); PLAN.md instead defines `id_offset`, `id_limit`, `document_limit`, `next_id_offset`, and `snapshot`.  
    **Fix:** Replace the roadmap endpoint summary with the exact PLAN contract or link to it without restating fields.
 
-2. **The roadmap batch contract omits its required snapshot.** It still documents `{ ids }` only ([roadmap.md:23](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:23)), contradicting the required `{ ids, snapshot }` request in PLAN.md.  
+2. **The roadmap batch contract omits its required snapshot.** It still documents `{ ids }` only ([roadmap.md:23](../../docs/roadmap.md#L23)), contradicting the required `{ ids, snapshot }` request in PLAN.md.  
    **Fix:** Add the required snapshot, `409` semantics, canonicalization, duplicate handling, and bounds.
 
-3. **The roadmap reintroduces the CORS contradiction.** It claims new endpoints are limited to `localhost:3000` ([roadmap.md:28](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:28)), while the binding plan deliberately retains global permissive `cors()`.  
+3. **The roadmap reintroduces the CORS contradiction.** It claims new endpoints are limited to `localhost:3000` ([roadmap.md:28](../../docs/roadmap.md#L28)), while the binding plan deliberately retains global permissive `cors()`.  
    **Fix:** Replace that item with the agreed global development CORS policy and `X-Client-Id` preflight coverage.
 
-4. **The roadmap still contains the obsolete dedupe algorithm.** It says lowercase everything, retain `OR`, and sort all words ([roadmap.md:27](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:27)); this loses the clause-aware behavior added to PLAN.md.  
+4. **The roadmap still contains the obsolete dedupe algorithm.** It says lowercase everything, retain `OR`, and sort all words ([roadmap.md:27](../../docs/roadmap.md#L27)); this loses the clause-aware behavior added to PLAN.md.  
    **Fix:** Summarize the clause-preserving algorithm accurately or refer directly to `dedupeKey()` in PLAN.md.
 
 5. **The roadmap still promises reuse of `FacetsService`.** The new plan requires repository-universe initialization and aggregate passes, which is not what the current per-value `FacetsService` does.  
@@ -423,7 +423,7 @@ VERDICT: REVISE
 6. **The roadmap’s scripts and testing strategy remain stale.** It lists only `web:install`/`web`, old component coverage, and manual-only integration, omitting `setup`, `dev`, root `test`, `/version`, contract tests, stale-response tests, snapshots, and 409 behavior.  
    **Fix:** Reconcile the foundation and quality sections with PLAN steps 10 and 18.
 
-7. **The roadmap says windowed snapshots are out of scope even though they are now required.** This directly contradicts the implemented snapshot protocol ([roadmap.md:129](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:129)).  
+7. **The roadmap says windowed snapshots are out of scope even though they are now required.** This directly contradicts the implemented snapshot protocol ([roadmap.md:129](../../docs/roadmap.md#L129)).  
    **Fix:** Remove that out-of-scope item or narrow it to live-price/search-index snapshots beyond the catalogue `indexed_at` protocol.
 
 ## 4. OUTSIDER — likely panel confusion
@@ -431,7 +431,7 @@ VERDICT: REVISE
 1. **Two authoritative-looking documents now describe different APIs.** Although PLAN.md says it is the contract, the roadmap presents concrete implementation checkboxes that a reviewer will reasonably treat as current.  
    **Fix:** Make roadmap entries consistent and add “Exact contract: PLAN.md” beside endpoint summaries.
 
-2. **ADR 0002 is materially reconciled but contains awkward nested punctuation.** “endpoint (non-blocking (results never wait…” reads like an unfinished edit ([ADR 0002:3](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/adr/0002-server-side-search-log.md:3)).  
+2. **ADR 0002 is materially reconciled but contains awkward nested punctuation.** “endpoint (non-blocking (results never wait…” reads like an unfinished edit ([ADR 0002:3](../../docs/adr/0002-server-side-search-log.md#L3)).  
    **Fix:** Rewrite as: “The browser sends a normal, non-blocking request; result rendering never waits for it, and failures only reach development logs.”
 
 3. **ADR 0002 does not explain mixed-result spellings.** This is now central because dedupe groups can contain executable spellings with different counts, yet the ADR still says simply that only terms with results qualify.  
@@ -460,7 +460,7 @@ VERDICT: REVISE
 
 ## 1. CONTRARIAN
 
-1. **The walkthrough still makes the opposite CORS/security decision.** It says new endpoints are restricted to `localhost:3000` and lists “Any origin” as rejected ([walkthrough.md:295](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/walkthrough.md:295)), while PLAN and roadmap retain global permissive CORS. This can produce either the wrong implementation or a false security claim.  
+1. **The walkthrough still makes the opposite CORS/security decision.** It says new endpoints are restricted to `localhost:3000` and lists “Any origin” as rejected ([walkthrough.md:295](../../docs/walkthrough.md#L295)), while PLAN and roadmap retain global permissive CORS. This can produce either the wrong implementation or a false security claim.  
    **Fix:** Update the walkthrough row to the agreed global development CORS policy and state that rate limiting—not CORS—is the demo abuse control.
 
 ## 2. FIRST-PRINCIPLES
@@ -475,12 +475,12 @@ The round-3 material issues are otherwise resolved:
 
 One remaining ambiguity:
 
-1. **Popular-label selection differs subtly between PLAN and ADR.** PLAN says the label is the most frequent spelling and admits a key only when that label has results ([PLAN.md:22](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/planning/PLAN.md:22)); ADR says popular “uses a label spelling that returns results” ([ADR 0002:7](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/adr/0002-server-side-search-log.md:7)). For a mixed key whose most frequent spelling has zero results, these imply exclusion versus selecting another positive spelling.  
+1. **Popular-label selection differs subtly between PLAN and ADR.** PLAN says the label is the most frequent spelling and admits a key only when that label has results ([PLAN.md:22](../../docs/planning/PLAN.md#L22)); ADR says popular “uses a label spelling that returns results” ([ADR 0002:7](../../docs/adr/0002-server-side-search-log.md#L7)). For a mixed key whose most frequent spelling has zero results, these imply exclusion versus selecting another positive spelling.  
    **Fix:** Define the label as the most frequent positive-result spelling, or explicitly state that such mixed keys are excluded.
 
 ## 3. EXECUTOR
 
-1. **The roadmap still contradicts itself about `FacetsService`.** Its introduction says new behavior reuses `SearchService` and `FacetsService` ([roadmap.md:15](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:15)), while the concrete task correctly says the new index service performs aggregation and legacy `FacetsService` remains unchanged ([roadmap.md:20](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/roadmap.md:20)). Following the former recreates the expensive per-value search implementation the plan rejected.  
+1. **The roadmap still contradicts itself about `FacetsService`.** Its introduction says new behavior reuses `SearchService` and `FacetsService` ([roadmap.md:15](../../docs/roadmap.md#L15)), while the concrete task correctly says the new index service performs aggregation and legacy `FacetsService` remains unchanged ([roadmap.md:20](../../docs/roadmap.md#L20)). Following the former recreates the expensive per-value search implementation the plan rejected.  
    **Fix:** Change the introduction to say the index service reuses shared search/filter primitives while legacy `FacetsService` remains untouched.
 
 2. **The endpoint, snapshot, cache, script, and test contracts are now buildable.** The previous conflicting `offset`/`size`, missing batch snapshot, stale CORS roadmap entry, obsolete dedupe summary, and snapshot out-of-scope statement have been corrected.
@@ -490,7 +490,7 @@ One remaining ambiguity:
 1. **The remaining CORS contradiction is panel-visible and security-sensitive.** A reviewer reading the walkthrough’s decision table will believe the API has an origin allowlist, then find unrestricted `cors()` in the implementation.  
    **Fix:** Reconcile the walkthrough before implementation or delivery.
 
-2. **ADR 0002 has a minor typo, not a material design flaw.** “the server” begins lowercase after a period ([ADR 0002:3](/Users/israelperez/Repos/betashares/invest-code-challenge-search/docs/adr/0002-server-side-search-log.md:3)).  
+2. **ADR 0002 has a minor typo, not a material design flaw.** “the server” begins lowercase after a period ([ADR 0002:3](../../docs/adr/0002-server-side-search-log.md#L3)).  
    **Fix:** Capitalize it during normal editorial cleanup.
 
 ## Material ranking
