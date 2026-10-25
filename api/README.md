@@ -129,4 +129,4 @@ The app follows a controller → service → repository structure:
 - `src/controllers/` handles HTTP.
 - `src/services/` holds the search and facet logic.
 - `src/repositories/` reads the JSON file.
-- `src/main.ts` wires everything together.
+- `src/app.ts` wires everything together, and `src/main.ts` starts the server.
