@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "api:install": "npm --prefix api install",
-    "api": "npm --prefix api start"
+    "api": "npm --prefix api start",
+    "test": "npm --prefix api test"
   }
 }
