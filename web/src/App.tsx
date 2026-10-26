@@ -1,10 +1,11 @@
-import { Box, Container, Flex, Heading, useBreakpointValue, Image, IconButton } from '@chakra-ui/react';
+import { Box, Container, Flex, Heading, useBreakpointValue } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
 import type { SearchTrigger } from './analytics/analytics';
 import type { OrderBy } from './api/types';
 import { AppliedFilters } from './components/AppliedFilters';
 import { FilterDrawer } from './components/FilterDrawer';
 import { FilterRail } from './components/FilterRail';
+import { Header } from './components/Header';
 import { Results } from './components/Results';
 import { SearchForm } from './components/SearchForm';
 import { config } from './config';
@@ -64,19 +65,7 @@ export function App() {
 
   return (
     <>
-    <Flex as="header" padding="16px" borderBottom="1px solid #ccc" justifyContent="space-between" alignItems="center">
-      <Image src='src/assets/betashares-logo.svg' alt='betashares logo' height="40px"/>
-      <Box>
-        <Heading as="h1" size="2xl" hideBelow="tablet">
-          Israel Perez - Assessment
-        </Heading>
-      </Box>
-      <Box>
-        <IconButton rounded="full">
-          <Image src='src/assets/gear-solid-full.svg' width="16px" filter="invert(100%)" />
-        </IconButton>
-      </Box>
-    </Flex>
+    <Header />
     <Container maxWidth="1030px" paddingX="4" paddingY="8">
       <Heading as="h1" size="2xl" marginBottom="6">
         ASX-listed instrument search
