@@ -3,7 +3,7 @@ import '../../tests/component/jsdom-setup';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FacetEntry, SearchIndexRequest } from '../../src/api/types';
-import { deferred, fake, fakeApi, fakeFacets, renderApp, rows, search, type FakeApi } from '../../tests/component/app-harness';
+import { deferred, fake, fakeApi, fakeFacets, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
 import { config } from '../config';
 
 const isCounts = (body: SearchIndexRequest) => !body.include?.includes('documents');
@@ -18,7 +18,13 @@ const click = async (element: HTMLElement) => {
   fireEvent.click(element);
   await tick(0);
 };
+// Below the tablet breakpoint the filters live in a drawer; beside the results there is no trigger and nothing to open.
+const filtersTrigger = () => screen.queryByRole('button', { name: /^Filters/ }) as HTMLButtonElement | null;
+const openDrawer = async () => {
+  if (filtersTrigger()?.getAttribute('aria-expanded') === 'false') await click(filtersTrigger()!);
+};
 const tickOption = async (name: RegExp) => {
+  await openDrawer();
   await click(box(name));
   await tick(config.countsDebounceMs);
   await tick(10);
@@ -40,6 +46,7 @@ async function setup(make?: Parameters<typeof replyCounts>[1]) {
   if (make) replyCounts(api, make);
   renderApp(api);
   await search('a');
+  if (filtersTrigger()) fireEvent.click(filtersTrigger()!);
   await waitFor(() => expect(box(/ETFs/).disabled).toBe(false));
   await waitFor(() => expect(screen.getAllByText('834').length).toBeGreaterThan(0));
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
@@ -117,7 +124,23 @@ describe('Filters', () => {
     await tick(10);
     expect(resultRequests(api)).toHaveLength(before + 1);
     expect(resultRequests(api).at(-1)![0]).toMatchObject({ kind: ['etf'], search_text: 'a' });
-    expect(applyButton()).toBeNull();
+    // The drawer's exit animation may still be running, so check the trigger's state, not the DOM.
+    expect(filtersTrigger()!.getAttribute('aria-expanded')).toBe('false');
+    expect(filtersTrigger()!.textContent).toBe('Filters (1)');
+  });
+
+  it('discards the pending ticks when the drawer is closed, and reopens from the applied filters', async () => {
+    const api = await setup();
+    const before = resultRequests(api).length;
+
+    await tickOption(/ETFs/);
+    await click(screen.getByRole('button', { name: 'Close filters' }));
+    await tick(config.countsDebounceMs + 10);
+
+    expect(resultRequests(api)).toHaveLength(before);
+    expect(filtersTrigger()!.textContent).toBe('Filters');
+    await openDrawer();
+    expect(box(/ETFs/).checked).toBe(false);
   });
 
   it('ORs within a section and ANDs across sections', async () => {
@@ -135,9 +158,9 @@ describe('Filters', () => {
     });
   });
 
-  it('is hidden with no pending changes, and shows the count on the button', async () => {
+  it('shows the count on the button, also with no pending changes', async () => {
     await setup((body) => ({ count: body.kind ? 1240 : undefined }));
-    expect(applyButton()).toBeNull();
+    expect(applyButton()!.textContent).toBe('Show 834 results');
 
     await tickOption(/ETFs/);
     expect(applyButton()!.textContent).toBe('Show 1,240 results');
@@ -180,20 +203,56 @@ describe('Filters', () => {
     expect(resultRequests(api).at(-1)![0]).not.toHaveProperty('kind');
   });
 
-  it('keeps applied filters and discards pending ticks on a new search', async () => {
+  it('discards the pending ticks when the viewport grows to tablet with the drawer open', async () => {
+    const api = await setup();
+    const original = window.matchMedia;
+    let tablet = false;
+    type Listener = (event: { matches: boolean; media: string }) => void;
+    const listeners = new Set<[string, Listener]>();
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      get matches() {
+        return tablet;
+      },
+      addEventListener: (_type: string, listener: Listener) => void listeners.add([query, listener]),
+      removeEventListener: (_type: string, listener: Listener) => listeners.forEach((entry) => entry[1] === listener && listeners.delete(entry)),
+    })) as unknown as typeof window.matchMedia;
+    try {
+      // Chakra reads matchMedia on mount, so remount under the controllable stub.
+      cleanup();
+      vi.useRealTimers();
+      renderApp(api);
+      await search('a');
+      fireEvent.click(filtersTrigger()!);
+      fireEvent.click(await screen.findByRole('checkbox', { name: /ETFs/ }));
+      await waitFor(() => expect(box(/ETFs/).checked).toBe(true));
+      const requests = resultRequests(api).length;
+
+      tablet = true;
+      act(() => listeners.forEach(([media, listener]) => listener({ matches: true, media })));
+      await new Promise((resolve) => setTimeout(resolve, config.countsDebounceMs + 100));
+
+      expect(resultRequests(api)).toHaveLength(requests);
+      expect(resultRequests(api).some(([body]) => body.kind)).toBe(false);
+      expect((await screen.findByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(false);
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it('keeps applied filters on a new search', async () => {
     const api = await setup();
     await tickOption(/ETFs/);
     await click(applyButton()!);
     await tick(10);
-    await tickOption(/Stocks/);
 
     vi.useRealTimers();
     await search('b');
     await waitFor(() => expect(resultRequests(api).at(-1)![0]).toMatchObject({ search_text: 'b', kind: ['etf'] }));
 
-    expect(box(/ETFs/).checked).toBe(true);
+    fireEvent.click(filtersTrigger()!);
+    expect((await screen.findByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(true);
     expect(box(/Stocks/).checked).toBe(false);
-    expect(applyButton()).toBeNull();
   });
 
   it('disables a zero-count option, and keeps it enabled once selected', async () => {
@@ -258,6 +317,8 @@ describe('Filters', () => {
     api.searchIndex.mockImplementation((body, signal) => (isCounts(body) ? first.promise : base(body, signal)));
     renderApp(api);
     await search('a');
+    fireEvent.click(filtersTrigger()!);
+    await screen.findByRole('dialog');
     const radios = () => screen.getAllByRole('radio', { hidden: true }).length;
     const before = radios();
 
@@ -266,5 +327,63 @@ describe('Filters', () => {
 
     expect(before).toBe(6);
     expect(radios()).toBe(before);
+  });
+
+  describe('beside the results (tablet and up)', () => {
+    const mobileMatchMedia = window.matchMedia;
+    beforeEach(() => {
+      window.matchMedia = ((query: string) => ({ ...mobileMatchMedia(query), matches: true })) as typeof window.matchMedia;
+    });
+    afterEach(() => {
+      window.matchMedia = mobileMatchMedia;
+    });
+
+    it('applies a tick after the debounce, with no apply button', async () => {
+      const api = await setup();
+      const before = resultRequests(api).length;
+
+      await click(box(/ETFs/));
+      expect(resultRequests(api)).toHaveLength(before);
+      await tick(config.countsDebounceMs + 10);
+
+      expect(resultRequests(api)).toHaveLength(before + 1);
+      expect(resultRequests(api).at(-1)![0]).toMatchObject({ kind: ['etf'], search_text: 'a' });
+      expect(applyButton()).toBeNull();
+    });
+
+    it('keeps the previous results, dimmed and busy, until the refined results arrive', async () => {
+      const api = await setup();
+      const pending = deferred<Awaited<ReturnType<FakeApi['searchIndex']>>>();
+      const base = api.searchIndex.getMockImplementation()!;
+      api.searchIndex.mockImplementation((body, signal) => (!isCounts(body) && body.kind ? pending.promise : base(body, signal)));
+      const shown = rows().length;
+
+      await tickOption(/ETFs/);
+
+      expect(skeletonRows()).toHaveLength(0);
+      expect(rows()).toHaveLength(shown);
+      expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('834 results');
+      expect(rows()[0].closest('[aria-busy="true"]')).not.toBeNull();
+      expect((screen.getByRole('button', { name: 'Load more' }) as HTMLButtonElement).disabled).toBe(true);
+
+      await act(async () => pending.resolve({ ...(await base({ search_text: 'a', include: ['count', 'ids', 'documents'] })), count: 3, documents: [] }));
+      await tick(10);
+
+      expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('3 results');
+      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    });
+
+    it('sends one results request for two quick ticks', async () => {
+      const api = await setup();
+      const before = resultRequests(api).length;
+
+      await click(box(/ETFs/));
+      await tick(50);
+      await click(box(/Stocks/));
+      await tick(config.countsDebounceMs + 10);
+
+      expect(resultRequests(api)).toHaveLength(before + 1);
+      expect(resultRequests(api).at(-1)![0]).toMatchObject({ kind: ['equity', 'etf'] });
+    });
   });
 });

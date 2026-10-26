@@ -61,6 +61,10 @@ export function bucketLabel(value: string, index: number, total: number): string
   return aUnit === bUnit ? `${a} to ${b} ${bUnit}` : `${a} ${aUnit} to ${b} ${bUnit}`;
 }
 
+// How many selections are applied: each kind, each flag and the units bucket.
+export const appliedCount = (filters: Filters) =>
+  (filters.kind?.length ?? 0) + FLAGS.filter(({ key, value }) => filters[key] === value).length + (filters.units_circulating ? 1 : 0);
+
 export const applyLabel = (count: number) =>
   count === 0 ? 'No matching results' : `Show ${count.toLocaleString('en-AU')} ${count === 1 ? 'result' : 'results'}`;
 

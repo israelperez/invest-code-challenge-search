@@ -1,12 +1,25 @@
 import { Box, Button, Checkbox, Fieldset, Flex, RadioGroup, Skeleton, Text } from '@chakra-ui/react';
 import { buildSearchRequest, type Filters } from '../search/build-search-request';
-import { applyLabel, filterSections, type FilterOption, type FilterSection } from '../search/filter-options';
-import { useFacetCounts } from '../search/queries';
+import { filterSections, type FilterOption, type FilterSection } from '../search/filter-options';
+import type { useFacetCounts } from '../search/queries';
 
-// Fixed-width slot, so a count loading in never moves the label.
+// Same height as a label line, so a row never changes height between loading and loaded.
+const ROW_HEIGHT = '6';
+
+// Fixed size, with tabular digits, so a count loading in or changing never moves the label.
 const Count = ({ option, loading }: { option: FilterOption; loading: boolean }) => (
-  <Box minWidth="10" textAlign="end" color="fg.muted" fontSize="sm">
-    {loading ? <Skeleton height="4" /> : option.count}
+  <Box
+    width="3ch"
+    height={ROW_HEIGHT}
+    lineHeight="1.5rem"
+    flexShrink={0}
+    textAlign="center"
+    whiteSpace="nowrap"
+    fontVariantNumeric="tabular-nums"
+    color="fg.muted"
+    fontSize="sm"
+  >
+    {loading ? <Skeleton height="full" width="2ch" marginX="auto" /> : option.count}
   </Box>
 );
 
@@ -16,7 +29,8 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
   return (
     <Fieldset.Root>
       <Fieldset.Legend srOnly={lone}>{section.legend}</Fieldset.Legend>
-      <Fieldset.Content gap="2">
+      {/* Options sit indented under a visible legend, so they read as its children. */}
+      <Fieldset.Content gap="2" paddingStart={lone ? undefined : '4'}>
         {section.control === 'radio' ? (
           <RadioGroup.Root
             value={section.options.find((o) => o.selected)?.id}
@@ -24,11 +38,11 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
           >
             <Flex direction="column" gap="2">
               {section.options.map((o) => (
-                <RadioGroup.Item key={o.id} value={o.id} disabled={o.disabled} width="full" minHeight="6" aria-hidden={o.placeholder || undefined}>
+                <RadioGroup.Item key={o.id} value={o.id} disabled={o.disabled} width="full" height={ROW_HEIGHT} aria-hidden={o.placeholder || undefined}>
                   <RadioGroup.ItemHiddenInput />
                   <RadioGroup.ItemIndicator />
                   {o.placeholder ? (
-                    <Skeleton height="4" flex="1" />
+                    <Skeleton height="full" flex="1" />
                   ) : (
                     <RadioGroup.ItemText flex="1">{o.label}</RadioGroup.ItemText>
                   )}
@@ -52,36 +66,20 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
   );
 }
 
-export function FilterRail({
-  term,
-  applied,
+// The sections and their controls, shared by the rail beside the results and the mobile drawer.
+export function FilterPanel({
+  counts: { facets, known, loading, error, retry },
   pending,
   onPendingChange,
-  onApply,
 }: {
-  term: string;
-  applied: Filters;
+  counts: ReturnType<typeof useFacetCounts>;
   pending: Filters;
   onPendingChange: (filters: Filters) => void;
-  onApply: () => void;
 }) {
-  const { facets, known, count, loading, error, retry } = useFacetCounts(term, pending);
   const key = (filters: Filters) => JSON.stringify(buildSearchRequest({ term: '', filters }));
-  const changed = key(pending) !== key(applied);
 
   return (
-    <Flex
-      as="aside"
-      aria-label="Filters"
-      direction="column"
-      gap="5"
-      width={{ base: 'full', md: '72' }}
-      flexShrink={0}
-      marginTop="6"
-      padding="4"
-      bg="bg.muted"
-      borderRadius="lg"
-    >
+    <Flex direction="column" gap="5">
       <Button variant="outline" size="sm" alignSelf="flex-start" disabled={key(pending) === key({})} onClick={() => onPendingChange({})}>
         Clear filters
       </Button>
@@ -96,21 +94,15 @@ export function FilterRail({
       {filterSections(facets, pending, known).map((section) => (
         <Section key={section.id} section={section} loading={loading} onChange={onPendingChange} />
       ))}
-      {/* The slot keeps its height when the button is hidden, so the page below never shifts. */}
-      <Box position="sticky" bottom="0" bg="bg.muted" paddingY="2" minHeight="14">
-        {changed && (
-          <Button
-            width="56"
-            maxWidth="full"
-            loading={loading}
-            loadingText="Counting results"
-            disabled={count === 0}
-            onClick={onApply}
-          >
-            {count === undefined ? 'Show results' : applyLabel(count)}
-          </Button>
-        )}
-      </Box>
     </Flex>
+  );
+}
+
+// Tablet and up. Ticks apply on their own, so there is no apply button.
+export function FilterRail({ counts, pending, onPendingChange }: { counts: ReturnType<typeof useFacetCounts>; pending: Filters; onPendingChange: (filters: Filters) => void }) {
+  return (
+    <Box as="aside" aria-label="Filters" width="260px" flexShrink={0} marginTop="6" padding="4" bg="bg.muted" borderRadius="lg">
+      <FilterPanel counts={counts} pending={pending} onPendingChange={onPendingChange} />
+    </Box>
   );
 }

@@ -1,5 +1,7 @@
 # Filter changes apply on a button; searches and sort apply immediately
 
+> Superseded for tablet and desktop by [ADR 0004](./0004-live-filters-on-tablet-and-desktop.md). It still applies to the mobile filter drawer.
+
 Ticking filters doesn't update the results. A debounced counts-only request keeps facet counts and the button total ("Show 31 results") live, and results are fetched only when the user presses the button. This applies on every breakpoint: in the mobile drawer and in the tablet/desktop filter rail. Searches (typed, suggestion, popular, recent) and sort changes apply immediately, because each is already a complete decision.
 
 ## Why
