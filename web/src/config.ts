@@ -23,4 +23,6 @@ export const config = {
   suggestionDebounceMs: 200,
   // Searches (issuer terms) shown in the suggestion list.
   suggestionTermLimit: 5,
+  // Placeholder rows shown in the suggestion list while the first lookup loads.
+  suggestionSkeletonRows: 1,
 } as const;

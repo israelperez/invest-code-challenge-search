@@ -1,17 +1,17 @@
-import { Button, CloseButton, Combobox, Field, Flex, Input, Text, VisuallyHidden, createListCollection } from '@chakra-ui/react';
+import { Box, Button, CloseButton, Combobox, Field, Flex, Input, Skeleton, Text, VisuallyHidden, createListCollection, useBreakpointValue } from '@chakra-ui/react';
 import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { config } from '../config';
 import { useSearchBackend } from '../search/search-source-context';
 import type { Suggestions } from '../search/suggestion-source';
 
-type Suggestion = { value: string; group: 'Searches' | 'Instruments'; fill: string; name?: string; disabled?: boolean };
-// `for` is the text the items answer; while it differs from what is typed they are stale.
+type Suggestion = { value: string; group: 'Suggested searches' | 'Matching shares and ETFs'; fill: string; name?: string };
+// `for` is the text the items answer; while it differs from what is typed they are not shown.
 type Lookup = { status: 'idle' | 'loading' | 'done' | 'failed'; items: Suggestion[]; for: string };
 
 function toItems({ terms, instruments }: Suggestions): Suggestion[] {
   return [
-    ...terms.map((term): Suggestion => ({ value: `term:${term}`, group: 'Searches', fill: term })),
-    ...instruments.map((i): Suggestion => ({ value: `instrument:${i.symbol_openfigi}`, group: 'Instruments', fill: i.symbol, name: i.display_name })),
+    ...terms.map((term): Suggestion => ({ value: `term:${term}`, group: 'Suggested searches', fill: term })),
+    ...instruments.map((i): Suggestion => ({ value: `instrument:${i.symbol_openfigi}`, group: 'Matching shares and ETFs', fill: i.symbol, name: i.display_name })),
   ];
 }
 
@@ -34,6 +34,9 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
   const [wantOpen, setWantOpen] = useState(false);
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle', items: [], for: '' });
   const inputRef = useRef<HTMLInputElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+  // Same cast as App.tsx: the generated breakpoint names still say sm..2xl.
+  const tablet = useBreakpointValue({ base: false, tablet: true } as Parameters<typeof useBreakpointValue<boolean>>[0], { ssr: false }) ?? false;
   const enabled = typed.trim().length >= config.suggestionMinChars;
   const open = wantOpen && enabled;
 
@@ -65,17 +68,11 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
     };
   }, [typed, enabled, suggestions]);
 
-  // The previous answer stays rendered while the next loads (no flicker, no resize) but cannot be picked.
-  const stale = lookup.for !== typed.trim();
+  // Items answer `lookup.for`; while the typed text has moved on they are not rendered, so they cannot be picked.
+  const fresh = lookup.for === typed.trim();
   const collection = useMemo(
-    () =>
-      createListCollection({
-        items: lookup.items.map((item) => ({ ...item, disabled: stale })),
-        groupBy: (item) => item.group,
-        itemToString: (item) => item.fill,
-        isItemDisabled: (item) => !!item.disabled,
-      }),
-    [lookup.items, stale],
+    () => createListCollection({ items: fresh ? lookup.items : [], groupBy: (item) => item.group, itemToString: (item) => item.fill }),
+    [lookup.items, fresh],
   );
 
   function submit(event: FormEvent) {
@@ -93,7 +90,7 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
     <form onSubmit={submit} role="search">
       <Field.Root id={inputId}>
         <Field.Label>Search shares and ETFs</Field.Label>
-        <Flex gap="2" width="full">
+        <Flex ref={rowRef} gap="2" width="full">
           <Combobox.Root
             collection={collection}
             ids={{ input: inputId, label: listLabelId }}
@@ -111,7 +108,8 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
               setWantOpen(false);
               onSearch(picked.fill);
             }}
-            positioning={{ sameWidth: true }}
+            // Below tablet the list spans the whole row (input and Search button); from tablet up it matches the input.
+            positioning={{ sameWidth: true, getAnchorRect: tablet ? undefined : () => rowRef.current?.getBoundingClientRect() ?? null }}
             flex="1"
             minWidth="0"
           >
@@ -150,11 +148,20 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
               <Combobox.Content>
                 {/* Names the listbox; the visible label belongs to the input. */}
                 <VisuallyHidden id={listLabelId}>Suggestions</VisuallyHidden>
-                {collection.size === 0 && (
-                  <Text paddingX="3" paddingY="2" color="fg.muted" aria-hidden>
-                    {lookup.status === 'failed' ? 'Suggestions unavailable' : lookup.status === 'done' ? 'No suggestions' : 'Loading suggestions'}
-                  </Text>
-                )}
+                {/* Combobox.Empty, not plain text: Chakra hides an open list with no items unless it holds one. */}
+                <Combobox.Empty paddingX="3" paddingY="2" color="fg.muted">
+                  {fresh && lookup.status === 'failed' ? (
+                    'Suggestions unavailable'
+                  ) : fresh && lookup.status === 'done' ? (
+                    'No suggestions'
+                  ) : (
+                    <Box aria-hidden>
+                      {Array.from({ length: config.suggestionSkeletonRows }, (_, i) => (
+                        <Skeleton key={i} data-testid="suggestion-skeleton-row" height="5" marginY="2" />
+                      ))}
+                    </Box>
+                  )}
+                </Combobox.Empty>
                 {collection.group().map(([group, items]) => (
                   <Combobox.ItemGroup key={group}>
                     <Combobox.ItemGroupLabel>{group}</Combobox.ItemGroupLabel>

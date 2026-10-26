@@ -100,8 +100,8 @@ describe('Suggestions list', () => {
     await open();
 
     expect(expanded()).toBe('true');
-    const searches = screen.getByRole('group', { name: 'Searches' });
-    const instruments = screen.getByRole('group', { name: 'Instruments' });
+    const searches = screen.getByRole('group', { name: 'Suggested searches' });
+    const instruments = screen.getByRole('group', { name: 'Matching shares and ETFs' });
     expect(within(searches).getAllByRole('option').map((o) => o.textContent)).toEqual(['Global X', 'Global Funds', 'X Global']);
     expect(within(instruments).getAllByRole('option').map((o) => o.textContent)).toEqual([
       expect.stringContaining('GLOB'),
@@ -187,32 +187,60 @@ describe('Suggestions list', () => {
   });
 });
 
+// Chakra hides an open list with no items unless it holds a Combobox.Empty, and jsdom does not apply that CSS,
+// so these pin the cause: the empty states must sit inside [data-part="empty"].
+describe('Empty states stay visible', () => {
+  const empty = () => screen.getByRole('listbox', { hidden: true }).querySelector('[data-part="empty"]');
+
+  it('shows skeleton rows while the first lookup is pending', async () => {
+    api.suggestInstruments.mockImplementation(() => new Promise(() => {}));
+    await open('glo');
+
+    expect(expanded()).toBe('true');
+    expect(empty()!.querySelectorAll('[data-testid="suggestion-skeleton-row"]')).toHaveLength(config.suggestionSkeletonRows);
+    expect(status()).toBe('Loading suggestions');
+  });
+
+  it('shows "No suggestions" inside the empty element', async () => {
+    await open('zzz');
+
+    expect(empty()!.textContent).toBe('No suggestions');
+  });
+
+  it('shows "Suggestions unavailable" inside the empty element', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    api.facetIssuer.mockRejectedValue(new Error('down'));
+    api.suggestInstruments.mockRejectedValue(new Error('down'));
+    await open('glo');
+
+    expect(empty()!.textContent).toBe('Suggestions unavailable');
+    error.mockRestore();
+  });
+});
+
 describe('Stale and failed lookups', () => {
   const answer = (symbol: string) => ({ results: [{ symbol, symbol_openfigi: `${symbol}:AU`, display_name: symbol, logo: null }], count: 1, indexed_at: 1 });
 
-  it('disables the previous answer until the one for the current text lands', async () => {
+  it('drops the previous answer for a skeleton until the one for the current text lands', async () => {
     await open('glo');
     let later!: (value: ReturnType<typeof answer>) => void;
     api.suggestInstruments.mockImplementationOnce(() => new Promise((resolve) => (later = resolve)));
-    const before = searchRequests(api).length;
 
     fireEvent.change(input(), { target: { value: 'glob' } });
+    expect(options()).toEqual([]);
     await tick(config.suggestionDebounceMs + 10);
-    const stale = screen.getByRole('option', { name: /GLOB/ });
-    expect(stale.getAttribute('aria-disabled')).toBe('true');
-    fireEvent.click(stale);
-    await key('ArrowDown');
-    await key('Enter');
-    await tick(10);
-    expect(searchRequests(api)).toHaveLength(before);
+    expect(options()).toEqual([]);
+    expect(screen.getAllByTestId('suggestion-skeleton-row')).toHaveLength(config.suggestionSkeletonRows);
+    expect(expanded()).toBe('true');
 
-    // Enter with only disabled items submits the typed text.
+    // Enter while loading submits the typed text.
+    await key('Enter');
     fireEvent.submit(input().closest('form')!);
     await tick(10);
     expect(searchRequests(api).at(-1)).toMatchObject({ search_text: 'glob' });
 
     await act(async () => later(answer('GLOBE')));
-    expect(screen.getByRole('option', { name: /GLOBE/, hidden: true }).getAttribute('aria-disabled')).toBeNull();
+    expect(screen.getByRole('option', { name: /GLOBE/, hidden: true })).toBeTruthy();
   });
 
   it('shows and announces "Suggestions unavailable" when both lookups fail, and logs it', async () => {
@@ -222,7 +250,6 @@ describe('Stale and failed lookups', () => {
     await open('glo');
 
     expect(status()).toBe('Suggestions unavailable');
-    expect(screen.getByText('Suggestions unavailable', { selector: 'p' })).toBeTruthy();
     expect(error).toHaveBeenCalled();
     error.mockRestore();
   });
@@ -240,7 +267,7 @@ describe('Stale and failed lookups', () => {
 });
 
 describe('Picking a suggestion is a search', () => {
-  it('makes the pre-pick items stale and looks up the picked text', async () => {
+  it('shows the skeleton, not the pre-pick items, and looks up the picked text', async () => {
     await open('glo');
     await key('ArrowDown');
     await key('Enter');
@@ -250,7 +277,8 @@ describe('Picking a suggestion is a search', () => {
 
     await key('ArrowDown');
     expect(expanded()).toBe('true');
-    expect(within(screen.getByRole('listbox')).getAllByRole('option').every((o) => o.getAttribute('aria-disabled') === 'true')).toBe(true);
+    expect(options()).toEqual([]);
+    expect(screen.getAllByTestId('suggestion-skeleton-row')).toHaveLength(config.suggestionSkeletonRows);
     await key('Enter');
     await tick(10);
     expect(searchRequests(api)).toHaveLength(before);
