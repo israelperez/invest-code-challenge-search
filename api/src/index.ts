@@ -10,6 +10,7 @@ export {
 
 // Expose controllers for main to register.
 export { SearchController } from './controllers/search.controller';
+export { SearchIndexController } from './controllers/search-index.controller';
 export { FacetsController } from './controllers/facets.controller';
 
 // Expose module init.

@@ -4,6 +4,8 @@
 export enum ApiEndpoint {
   Health = '/',
   Search = '/search',
+  SearchIndex = '/search/index',
+  Version = '/version',
   Instrument = '/instruments/:id',
   FacetKeys = '/facets/keys',
   FacetKeysByKind = '/v2/facets/keys',
