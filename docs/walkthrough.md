@@ -75,20 +75,18 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 ## 6. Filters: drill down
 
-1. Clear the query. Tick **Type: ETF**.
-   - Results don't change yet; every other filter's counts update, and a "Show 456 results" button appears
-   - Network: one small counts-only request, no results fetched
+1. Clear the query. Tick **Type: ETFs**.
+   - After a short pause the results update. While they load, the previous results stay on screen, dimmed
+   - Every other filter's counts update
 2. Tick **Issuer: Vanguard** and **BlackRock** quickly.
-   - One counts request, not two (debounced); the button total updates
-3. Toggle **Available for Auto Invest**, then press the button.
-   - Results load once, with all three refinements (AND across sections, OR within Issuer)
+   - One results request, not two (debounced)
+3. Toggle **Available for Auto Invest**.
+   - Results show all three refinements (AND across sections, OR within Issuer)
    - Options that would give 0 results show disabled, not hidden, so nothing jumps
-4. Untick ETF, pick a **Units on issue** range, apply.
-   - Only equities remain, as the "Equities only" label warns
-5. Tick a few filters, then run a new search without pressing the button.
-   - Pending ticks are discarded; applied filters stay
+4. Untick ETFs, pick a **Shares issued** range.
+   - Only stocks remain, as the "(stocks only)" label warns
 
-**Proves:** filtering **[AC]**; live counts prevent dead ends; results are only fetched when the user is ready.
+**Proves:** filtering **[AC]**; live counts prevent dead ends; on a wide screen each change shows in the results straight away.
 
 ## 7. Sort
 
@@ -172,10 +170,13 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
    - Changes discarded
 4. Reopen, tick again, press **Show X results**.
    - Drawer closes, results apply
-5. Widen to ~900px (tablet, 760–1029px), then ~1300px (desktop, 1030px+).
+5. Tick a filter in the drawer, close it, then run a new search.
+   - Pending ticks are discarded; applied filters stay
+6. Widen to ~900px (tablet, 760–1029px), then ~1300px (desktop, 1030px+).
    - Two columns: 260px filter rail and results; on desktop the content caps at 1030px and centres
+   - Ticking a filter updates the results directly, with no button
 
-**Proves:** mobile-first responsive layout; the same apply-on-button behaviour at every size.
+**Proves:** mobile-first responsive layout; filters wait for the button on mobile and apply as you tick on tablet and desktop.
 
 ---
 
@@ -272,7 +273,7 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | Zero results with filters: "Try removing" chips with the count you'd get | A way out without mixing non-matching results into the list | Silent empty list |
 | Sort by: Recommended (default), Ticker A–Z / Z–A, Name A–Z / Z–A, Units on issue | "Recommended" reads right with or without a query, where "Best match" doesn't. Sort change resets to the first batch | Issuer sort (API sorts on slugs; the filter covers it), units low to high (no common need) |
 | Sort in the results header, separate from filters, applied immediately, computed server-side | Sort is how results are shown, filters are which results; sorting only loaded rows would give a wrong order | Sort inside the filter panel; sorting loaded rows in the browser |
-| Filter changes apply on a button; counts update live via debounced counts-only requests ([ADR 0003](./adr/0003-refinements-apply-on-button.md)) | Results are only fetched when the user is ready; the live total stops them applying into zero results | Live-apply on every tick; no counts until applied |
+| Filters apply as you tick on tablet and desktop, and on a button in the mobile drawer. Counts update live through debounced counts-only requests ([ADR 0003](./adr/0003-refinements-apply-on-button.md), [ADR 0004](./adr/0004-live-filters-on-tablet-and-desktop.md)) | On a wide screen the results sit beside the rail, so each change shows straight away. On a phone the drawer covers the results, so the live total on the button shows what you'll get | A button everywhere (it got missed at the bottom of a tall rail); live updates behind the mobile drawer |
 | Applied-filter chips with ×, plus "Clear filters" (filters only), both applied immediately | Shows what's narrowing the results; one tap is a complete decision. Sort is separate, so clearing doesn't touch it | "Clear all" resetting sort too |
 | Button wording: "Show 1 result" / "Show 31 results" / disabled "No matching results" | Correct singular/plural; a disabled zero state explains itself | "Apply filters" |
 
