@@ -18,6 +18,8 @@ It accepts requests from any origin, so a frontend on `http://localhost:3000` ca
 | Method | Path | Use it for |
 | --- | --- | --- |
 | POST | `/search` | Search results: free text, filters, ordering and pages |
+| POST | `/search/index` | ID-first search: count, an ordered window of IDs and the first documents |
+| GET | `/version` | The current `indexed_at`, to spot a restarted API |
 | POST | `/facets/:key` | Filter options with counts, e.g. `/facets/kind` |
 | GET | `/facets/keys` | The facet keys you can request |
 | GET | `/instruments/:symbol_openfigi` | One instrument, e.g. `/instruments/A200:AU` |
@@ -92,6 +94,58 @@ Some fields are only set on some instruments. `issuer` is set on every ETF but o
 - `order_by`: any result field, with an optional direction: `"symbol.asc"` or `"units_circulating.desc"`. The direction defaults to `desc`, and missing values always sort last.
 - `from`: the page number, starting at 1.
 - `size`: the page size, 15 by default.
+
+## ID-first search
+
+`POST /search/index` returns the matching `symbol_openfigi` IDs in order, with the first few documents inlined, so a client can page through IDs and hydrate documents separately (see [ADR 0001](../docs/adr/0001-id-first-search-with-hydration.md)). It is strict: unknown fields, including `from`, `size` and `symbol_openfigi`, return `400`. Every key is optional.
+
+```json
+{
+  "search_text": "bank",
+  "kind": ["etf"],
+  "is_betashares": { "value": true },
+  "units_circulating": { "min": "1000" },
+  "order_by": "symbol.asc",
+  "include": ["count", "ids", "documents"],
+  "id_offset": 0,
+  "id_limit": 1000,
+  "document_limit": 15
+}
+```
+
+```json
+{
+  "indexed_at": 1790908072598,
+  "count": 102,
+  "ids": ["A200:AU", "BNKS:AU"],
+  "next_id_offset": null,
+  "documents": [{ "symbol": "A200", "symbol_openfigi": "A200:AU", "...": "as in /search" }]
+}
+```
+
+- Filters are those of `/search`, except `symbol_openfigi`. Boolean filters are exactly `{ "value": boolean }` and `units_circulating` takes only `min` and `max` as numeric strings.
+- `order_by` is one of `symbol`, `display_name` or `units_circulating`, then `.asc` or `.desc`. Omitted, the default order applies. Ties are broken by `symbol_openfigi`, so the order is fully determined (`/search` is unchanged).
+- `include` lists what to return, from `count`, `facets`, `ids` and `documents`. It defaults to all, repeats are ignored and `documents` needs `ids` (else `400`). `facets` is accepted but returns nothing yet. `indexed_at` is always returned.
+- The ID window: `ids` starts at `id_offset` (default 0) and holds at most `id_limit` IDs (default 1000, 1 to 1000). `next_id_offset` is where the next window starts, or `null` when no IDs remain. An offset past the end gives `ids: []`.
+- `documents` holds the full documents of the first `document_limit` IDs of the window (default 15, 0 to 100), in the same order. When `ids` is not included, `id_offset`, `id_limit` and `document_limit` are ignored.
+- Bounds: `search_text` 0 to 100 characters; `kind` and `issuer` up to 100 values of up to 100 characters; `id_offset` up to 1,000,000.
+- `X-Client-Id` is accepted and ignored for now.
+
+To continue, send the next window with the `indexed_at` from the first response as `snapshot`:
+
+```json
+{ "search_text": "bank", "include": ["ids", "documents"], "id_offset": 15, "id_limit": 15, "snapshot": 1790908072598 }
+```
+
+`snapshot` is required when `id_offset` is above 0. If it no longer matches the current `indexed_at` (the API restarted on new data), the response is `409` with the current value, and the client should start again from the first window:
+
+```json
+{ "message": "The snapshot is stale, restart from the first window", "indexed_at": 1790908099999 }
+```
+
+`GET /version` returns `{ "indexed_at": 1790908072598 }`.
+
+Request bodies are limited to 32KB on every endpoint; larger ones return `413`.
 
 ## Facets
 

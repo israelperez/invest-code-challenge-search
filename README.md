@@ -21,6 +21,7 @@ Run the mock Search API from the repository root:
 npm run api:install
 npm run api        # http://localhost:8787
 ```
+> **Note:** this setup is superseded by the solution's [Setup](#setup) below, which installs and runs the API and the web app together.
 
 See [api/README.md](./api/README.md) for its endpoints, request format and examples.
 
@@ -34,17 +35,23 @@ A search page for ASX-listed instruments, built in React against the mock Search
 
 ## Setup
 
-Requires Node 20 or later.
+Requires Node 20.19 or later.
 
 ```bash
-npm run api:install
-npm run web:install
-
-npm run api        # mock Search API on http://localhost:8787
-npm run web        # app on http://localhost:3000
+npm run setup   # installs the API and the web app
+npm run dev     # runs both: API on http://localhost:8787, app on http://localhost:3000
 ```
 
-Run `api` and `web` in separate terminals, then open [http://localhost:3000](http://localhost:3000).
+Then open [http://localhost:3000](http://localhost:3000). Ctrl-C stops both servers.
+
+You can also run them in two terminals, which is handy when you want to restart the API on its own:
+
+```bash
+npm run api     # terminal 1: mock Search API on http://localhost:8787
+npm run web     # terminal 2: app on http://localhost:3000
+```
+
+To run the tests, use `npm test`. It runs the API suite and then the web suite, including a contract test that starts the real API on a spare port. You don't need a browser or any extra tooling.
 
 ## How it works
 

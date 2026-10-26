@@ -8,6 +8,7 @@ import {
   InstrumentsRepository,
   JsonInstrumentsRepository,
   SearchController,
+  SearchIndexController,
   initSearchModule,
 } from './index';
 import { HealthController } from './health/health.controller';
@@ -53,15 +54,22 @@ export function createApp({
 interface AppControllers {
   healthController: HealthController;
   searchController: SearchController;
+  searchIndexController: SearchIndexController;
   facetsController: FacetsController;
 }
 
 function initAppModules(repository: InstrumentsRepository): AppControllers {
   const healthController = new HealthController();
 
-  const { searchController, facetsController } = initSearchModule(repository);
+  const { searchController, searchIndexController, facetsController } =
+    initSearchModule(repository);
 
-  return { healthController, searchController, facetsController };
+  return {
+    healthController,
+    searchController,
+    searchIndexController,
+    facetsController,
+  };
 }
 
 /**
@@ -71,6 +79,7 @@ function registerAppRoutes(app: Koa, controllers: AppControllers) {
   const routers: Router[] = [
     controllers.healthController.getRouter(),
     controllers.searchController.getRouter(),
+    controllers.searchIndexController.getRouter(),
     controllers.facetsController.getRouter(),
   ];
 
@@ -90,6 +99,8 @@ function registerAppMiddleware(app: Koa) {
   app.use(
     bodyParser({
       encoding: 'utf-8',
+      // Set explicitly so it is a decision, not the library default.
+      jsonLimit: '32kb',
       parsedMethods: ['POST'],
       // Parse every POST body as JSON whatever its Content-Type, like the real Search API.
       detectJSON: () => true,

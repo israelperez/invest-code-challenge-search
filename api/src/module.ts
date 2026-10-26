@@ -1,7 +1,9 @@
 import { FacetsController } from './controllers/facets.controller';
 import { SearchController } from './controllers/search.controller';
+import { SearchIndexController } from './controllers/search-index.controller';
 import { InstrumentsRepository } from './repositories/instruments-json.repository';
 import { FacetsService } from './services/facets.service';
+import { SearchIndexService } from './services/search-index.service';
 import { SearchService } from './services/search.service';
 
 /**
@@ -10,6 +12,7 @@ import { SearchService } from './services/search.service';
  */
 export interface SearchModuleResult {
   searchController: SearchController;
+  searchIndexController: SearchIndexController;
   facetsController: FacetsController;
 }
 
@@ -25,6 +28,9 @@ export function initSearchModule(
 
   return {
     searchController: new SearchController(searchService),
+    searchIndexController: new SearchIndexController(
+      new SearchIndexService(instrumentsRepository),
+    ),
     facetsController: new FacetsController(facetsService),
   };
 }
