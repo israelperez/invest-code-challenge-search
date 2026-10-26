@@ -47,6 +47,10 @@ Default vocabulary: needs-triage, needs-info, ready-for-agent, ready-for-human, 
 
 Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
+## Model split (this project)
+
+Overrides the global opus-decides rule here: Sonnet orchestrates and builds. Builder subagents only for real builds (more than ~2 files or a new module); smaller changes inline. Opus only in its own short session for design or grill work, never mid-ticket. One fresh session per ticket, ended with a handoff.
+
 ## Ponytail
 
 Only for writing code: `/implement` runs and builder subagents invoke the `ponytail:ponytail` skill (level full) before their first code edit. Never in planning, design, review or orchestration. Sessions start with it off (`PONYTAIL_DEFAULT_MODE=off`); don't type `/ponytail` in the main session — it sets the mode globally.
