@@ -3,8 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "setup": "npm run api:install && npm run web:install",
+    "dev": "node scripts/dev.mjs",
     "api:install": "npm --prefix api install",
+    "web:install": "npm --prefix web install",
     "api": "npm --prefix api start",
-    "test": "npm --prefix api test"
+    "web": "npm --prefix web run dev",
+    "test": "npm --prefix api test && npm --prefix web test"
   }
 }

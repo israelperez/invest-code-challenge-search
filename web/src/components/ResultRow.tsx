@@ -1,0 +1,48 @@
+import { Badge, Box, Flex, Image, Text } from '@chakra-ui/react';
+import { useState } from 'react';
+import type { InstrumentDocument } from '../api/types';
+import defaultLogo from '../assets/default-logo.svg';
+import { issuerLabel } from '../format/issuer-label';
+
+const unitsFormat = new Intl.NumberFormat('en-AU');
+
+function Logo({ src }: { src: string | null }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <Image
+      src={failed || !src ? defaultLogo : src}
+      alt=""
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      boxSize="10"
+      flexShrink={0}
+      objectFit="contain"
+    />
+  );
+}
+
+export function ResultRow({ instrument }: { instrument: InstrumentDocument }) {
+  const issuer = issuerLabel(instrument.issuer);
+  const units = instrument.kind === 'equity' && instrument.units_circulating;
+  return (
+    <Flex as="li" gap="4" alignItems="center" paddingY="3" borderBottomWidth="1px" borderColor="border">
+      <Logo src={instrument.logo} />
+      <Box flex="1" minWidth="0">
+        <Flex gap="2" alignItems="baseline" wrap="wrap">
+          <Text fontWeight="semibold">{instrument.symbol}</Text>
+          <Text>{instrument.display_name}</Text>
+        </Flex>
+        <Text color="fg.muted" fontSize="sm">
+          {[instrument.kind.toUpperCase(), issuer, units && `${unitsFormat.format(Number(units))} units on issue`]
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+      </Box>
+      <Flex gap="1" wrap="wrap" justifyContent="flex-end">
+        {instrument.is_betashares && <Badge>Betashares</Badge>}
+        {instrument.is_flagship_fund && <Badge>Flagship</Badge>}
+        {instrument.is_auto_invest_included && <Badge>Auto Invest</Badge>}
+      </Flex>
+    </Flex>
+  );
+}
