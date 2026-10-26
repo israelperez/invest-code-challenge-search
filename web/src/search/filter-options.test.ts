@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { issuerLabel } from '../format/issuer-label';
-import { appliedCount, applyLabel, bucketLabel, filterSections, UNIT_BUCKET_ROWS, type Facets } from './filter-options';
+import type { Filters } from './build-search-request';
+import { appliedChips, appliedCount, applyLabel, bucketLabel, filterSections, UNIT_BUCKET_ROWS, type Facets } from './filter-options';
 
 const BUCKETS = [
   '0,100000000',
@@ -196,5 +197,44 @@ describe('issuer section', () => {
 describe('appliedCount', () => {
   it('counts issuers, kinds, flags and the units bucket', () => {
     expect(appliedCount({ issuer: ['a', 'b'], kind: ['etf'], is_betashares: true, units_circulating: { min: '0', max: '1' } })).toBe(5);
+  });
+});
+
+describe('appliedChips', () => {
+  const known: Facets = { units_circulating: BUCKETS.map((value) => ({ value, count: 1 })) };
+  const all: Filters = {
+    kind: ['equity', 'etf'],
+    issuer: ['vanguard', 'investors_mutual'],
+    is_betashares: true,
+    is_portfolio_excluded: false,
+    units_circulating: { min: '1000000000', max: '5000000000' },
+  };
+
+  it('is empty when nothing is applied', () => {
+    expect(appliedChips({}, known)).toEqual([]);
+  });
+
+  it('has one chip per value in panel order, labelled without the raw slug', () => {
+    expect(appliedChips(all, known).map((c) => c.label)).toEqual([
+      'ETFs',
+      'Stocks',
+      'Investors Mutual',
+      'Vanguard',
+      'Betashares funds only',
+      'Portfolio eligible only',
+      'Shares issued: 1 to 5 billion',
+    ]);
+  });
+
+  it('removes only its own value, deleting the key when emptied', () => {
+    const chips = appliedChips(all, known);
+    const next = (label: string) => chips.find((c) => c.label === label)!.next;
+    expect(next('ETFs')).toEqual({ ...all, kind: ['equity'] });
+    expect(next('Stocks')).toEqual({ ...all, kind: ['etf'] });
+    expect(next('Vanguard')).toEqual({ ...all, issuer: ['investors_mutual'] });
+    expect(next('Betashares funds only')).not.toHaveProperty('is_betashares');
+    expect(next('Portfolio eligible only')).not.toHaveProperty('is_portfolio_excluded');
+    expect(next('Shares issued: 1 to 5 billion')).not.toHaveProperty('units_circulating');
+    expect(appliedChips({ kind: ['etf'] }, known)[0].next).toEqual({});
   });
 });

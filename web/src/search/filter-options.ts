@@ -60,6 +60,8 @@ const option = (id: string, label: string, count: number | undefined, selected: 
   next,
 });
 
+const byLabel = (a: string, b: string) => issuerLabel(a).localeCompare(issuerLabel(b)) || a.localeCompare(b);
+
 const unit = (n: number) => (n >= 1e9 ? ([n / 1e9, 'billion'] as const) : ([n / 1e6, 'million'] as const));
 
 // `value` is the API's "min,max" edge pair.
@@ -75,6 +77,37 @@ export function bucketLabel(value: string, index: number, total: number): string
 // How many selections are applied: each kind, each issuer, each flag and the units bucket.
 export const appliedCount = (filters: Filters) =>
   (filters.kind?.length ?? 0) + (filters.issuer?.length ?? 0) + FLAGS.filter(({ key, value }) => filters[key] === value).length + (filters.units_circulating ? 1 : 0);
+
+export type AppliedChip = { id: string; label: string; next: Filters };
+
+// One chip per applied value, in panel order; each `next` is the filters without just that value.
+export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
+  const chosenKinds = filters.kind ?? [];
+  const kinds = [...new Set([...Object.keys(KIND_LABELS), ...chosenKinds])].filter((k) => chosenKinds.includes(k));
+  const chosenIssuers = filters.issuer ?? [];
+  const drop = (key: 'kind' | 'issuer', value: string): Filters => {
+    const list = (filters[key] ?? []).filter((v) => v !== value);
+    return list.length ? { ...filters, [key]: list } : without(filters, key);
+  };
+  const buckets = (known?.units_circulating ?? []).map((e) => e.value);
+  const { units_circulating: units } = filters;
+  const bucket = units ? buckets.findIndex((value) => value === `${units.min},${units.max}`) : -1;
+  return [
+    ...kinds.map((kind) => ({ id: `kind:${kind}`, label: KIND_LABELS[kind] ?? kind, next: drop('kind', kind) })),
+    ...[...chosenIssuers].sort(byLabel).map((slug) => ({ id: `issuer:${slug}`, label: issuerLabel(slug), next: drop('issuer', slug) })),
+    ...FLAGS.filter(({ key, value }) => filters[key] === value).map(({ key, label }) => ({ id: key, label, next: without(filters, key) })),
+    ...(units
+      ? [
+          {
+            id: 'units_circulating',
+            // shortcut: a bucket missing from `known` (counts not loaded yet) gets a generic label, fine as the next counts reply restores it.
+            label: `Shares issued: ${bucket >= 0 ? bucketLabel(buckets[bucket], bucket, buckets.length) : 'selected range'}`,
+            next: without(filters, 'units_circulating'),
+          },
+        ]
+      : []),
+  ];
+}
 
 export const applyLabel = (count: number) =>
   count === 0 ? 'No matching results' : `Show ${count.toLocaleString('en-AU')} ${count === 1 ? 'result' : 'results'}`;
@@ -94,7 +127,6 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
     }),
   };
 
-  const byLabel = (a: string, b: string) => issuerLabel(a).localeCompare(issuerLabel(b)) || a.localeCompare(b);
   const issuerSlugs = (known?.issuer ?? []).map((e) => e.value);
   const chosenIssuers = filters.issuer ?? [];
   const issuerOptions = issuerSlugs.sort(byLabel).map((slug) => {
