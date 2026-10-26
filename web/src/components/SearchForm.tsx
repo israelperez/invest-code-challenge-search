@@ -1,11 +1,11 @@
 import { Box, Button, CloseButton, Combobox, Field, Flex, Input, Skeleton, Text, VisuallyHidden, createListCollection, useBreakpointValue } from '@chakra-ui/react';
-import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { config } from '../config';
 import { PopularPills } from './PopularPills';
 import { useSearchBackend } from '../search/search-source-context';
 import type { Suggestions } from '../search/suggestion-source';
 
-type Suggestion = { value: string; group: 'Suggested searches' | 'Matching shares and ETFs'; fill: string; name?: string };
+type Suggestion = { value: string; group: 'Suggested searches' | 'Matching shares and ETFs' | 'Recent searches'; fill: string; name?: string };
 // `for` is the text the items answer; while it differs from what is typed they are not shown.
 type Lookup = { status: 'idle' | 'loading' | 'done' | 'failed'; items: Suggestion[]; for: string };
 
@@ -23,24 +23,36 @@ function announcement({ status, items }: Lookup) {
   return '';
 }
 
+const noSubscribe = () => () => {};
+const noTerms: readonly string[] = [];
+
 // Fixed-size controls: the clear button is hidden, never removed, so nothing reflows while typing.
 // The list is a popover over the page, so opening it moves nothing either.
 // The popular searches show only before the first search; the results take their place.
 export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string) => void; showPopular: boolean }) {
-  const { suggestions } = useSearchBackend();
+  const { suggestions, recent } = useSearchBackend();
   const inputId = useId();
   const listLabelId = `${inputId}-suggestions`;
   const [value, setValue] = useState('');
   // The text the suggestions answer: typed, or filled by a pick. After a pick the old items go stale until the lookup for the filled text lands.
   const [typed, setTyped] = useState('');
   const [wantOpen, setWantOpen] = useState(false);
+  const recentTerms = useSyncExternalStore(recent?.subscribe ?? noSubscribe, recent?.list ?? (() => noTerms));
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle', items: [], for: '' });
   const inputRef = useRef<HTMLInputElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   // Same cast as App.tsx: the generated breakpoint names still say sm..2xl.
   const tablet = useBreakpointValue({ base: false, tablet: true } as Parameters<typeof useBreakpointValue<boolean>>[0], { ssr: false }) ?? false;
   const enabled = typed.trim().length >= config.suggestionMinChars;
-  const open = wantOpen && enabled;
+  // Under the suggestion minimum the popup offers recent searches starting with the typed text; from it, suggestions only.
+  const recentMode = recent !== null && !enabled;
+  const recentItems = useMemo(() => {
+    const prefix = typed.trim().toLowerCase();
+    return recentMode
+      ? recentTerms.filter((t) => t.toLowerCase().startsWith(prefix)).map((t): Suggestion => ({ value: `recent:${t}`, group: 'Recent searches', fill: t }))
+      : [];
+  }, [recentMode, recentTerms, typed]);
+  const open = wantOpen && (enabled || (recentMode && (typed.trim() === '' || recentItems.length > 0)));
 
   // Each keystroke restarts the debounce and aborts whatever is in flight.
   useEffect(() => {
@@ -73,8 +85,8 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
   // Items answer `lookup.for`; while the typed text has moved on they are not rendered, so they cannot be picked.
   const fresh = lookup.for === typed.trim();
   const collection = useMemo(
-    () => createListCollection({ items: fresh ? lookup.items : [], groupBy: (item) => item.group, itemToString: (item) => item.fill }),
-    [lookup.items, fresh],
+    () => createListCollection({ items: recentMode ? recentItems : fresh ? lookup.items : [], groupBy: (item) => item.group, itemToString: (item) => item.fill }),
+    [lookup.items, fresh, recentMode, recentItems],
   );
 
   function submit(event: FormEvent) {
@@ -104,7 +116,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
             open={open}
             onOpenChange={({ open }) => setWantOpen(open)}
             onSelect={({ itemValue }) => {
-              const picked = lookup.items.find((item) => item.value === itemValue);
+              const picked = collection.find(itemValue);
               if (!picked) return;
               change(picked.fill);
               setWantOpen(false);
@@ -125,6 +137,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
                   maxLength={100}
                   // The combobox reports its value a tick late; a submit or the debounce must not wait for it.
                   onChange={(e) => change(e.target.value)}
+                  onFocus={() => recent && setWantOpen(true)}
                   onBlur={() => setWantOpen(false)}
                   onKeyDown={(e) => {
                     // A second Escape, with the list already closed, clears the input.
@@ -149,10 +162,12 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
             <Combobox.Positioner>
               <Combobox.Content>
                 {/* Names the listbox; the visible label belongs to the input. */}
-                <VisuallyHidden id={listLabelId}>Suggestions</VisuallyHidden>
+                <VisuallyHidden id={listLabelId}>{recentMode ? 'Recent searches' : 'Suggestions'}</VisuallyHidden>
                 {/* Combobox.Empty, not plain text: Chakra hides an open list with no items unless it holds one. */}
                 <Combobox.Empty paddingX="3" paddingY="2" color="fg.muted">
-                  {fresh && lookup.status === 'failed' ? (
+                  {recentMode ? (
+                    'No recent searches yet'
+                  ) : fresh && lookup.status === 'failed' ? (
                     'Suggestions unavailable'
                   ) : fresh && lookup.status === 'done' ? (
                     'No suggestions'
@@ -169,7 +184,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
                     <Combobox.ItemGroupLabel>{group}</Combobox.ItemGroupLabel>
                     {items.map((item) => (
                       <Combobox.Item key={item.value} item={item}>
-                        <Combobox.ItemText>
+                        <Combobox.ItemText flex="1">
                           {item.fill}
                           {item.name && (
                             <Text as="span" color="fg.muted" marginStart="2">
@@ -190,7 +205,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
         </Flex>
         {/* aria-live rather than role=status: the results already own the page's one status role. Polite, so typing is never interrupted; always mounted so a screen reader picks up the change. */}
         <VisuallyHidden aria-live="polite" data-testid="suggestion-status">
-          {announcement(lookup)}
+          {recentMode && open ? (recentItems.length ? `${recentItems.length} recent search${recentItems.length === 1 ? '' : 'es'}` : 'No recent searches yet') : announcement(lookup)}
         </VisuallyHidden>
         {/* Helper text, not a placeholder: it stays visible while typing and wraps on narrow phones. */}
         <Field.HelperText>Search by ASX code (ticker) or name</Field.HelperText>

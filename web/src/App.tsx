@@ -13,7 +13,7 @@ import { useFacetCounts, useSearchIndex } from './search/queries';
 import { useSearchBackend } from './search/search-source-context';
 
 export function App() {
-  const { logSearch } = useSearchBackend();
+  const { logSearch, recent } = useSearchBackend();
   const [term, setTerm] = useState<string | null>(null);
   // Sort is independent of the term, so a new search keeps it.
   const [orderBy, setOrderBy] = useState<OrderBy>();
@@ -36,11 +36,23 @@ export function App() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const state = term === null ? null : { term, filters: applied, order_by: orderBy };
   const query = useSearchIndex(state);
+  // The search awaiting its first response; a new object per search, so repeating a term re-arms it.
+  const [submission, setSubmission] = useState<{ term: string } | null>(null);
+  // A recent search is saved when its first response has results. A failed or superseded search is dropped,
+  // and later refinements find no pending submission, so they never re-add it.
+  useEffect(() => {
+    if (!submission || submission.term !== term) return;
+    if (query.isError) return setSubmission(null);
+    if (!query.data || query.isPlaceholderData) return;
+    if ((query.data.count ?? 0) > 0) recent?.add(submission.term);
+    setSubmission(null);
+  }, [submission, term, query.data, query.isError, query.isPlaceholderData, recent]);
 
   function search(next: string) {
     // Every explicit search is logged, even one superseded before its results land.
     logSearch(next);
     setTerm(next);
+    setSubmission({ term: next });
     setPending(applied);
   }
 

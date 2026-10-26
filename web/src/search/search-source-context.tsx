@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { ApiClient } from '../api/client';
 import type { PopularSource } from './popular-source';
+import type { RecentSearchStore } from './recent-search-store';
 import type { SearchSource } from './search-source';
 import type { SuggestionSource } from './suggestion-source';
 
@@ -9,6 +10,8 @@ type SearchBackend = {
   source: SearchSource;
   suggestions: SuggestionSource;
   popular: PopularSource;
+  // Null when the recentSearches flag is off.
+  recent: RecentSearchStore | null;
   // Logs an explicit search to the server; never blocks the results.
   logSearch: (term: string) => void;
 };
