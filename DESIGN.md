@@ -75,4 +75,18 @@ Stack: `"Rund Text", Inter, -apple-system, system-ui, sans-serif`. The host serv
 
 Interactive elements never change size or weight between states (no layout shift).
 
+## Layout
+
+Mobile-first: base styles are for phones, and each breakpoint adds to them from its minimum width up. Breakpoints are defined once in the theme:
+
+| Token | Min width |
+| --- | --- |
+| `base` | 0 |
+| `mobileLarge` | 560px |
+| `tablet` | 760px |
+| `tabletLarge` | 895px |
+| `desktop` | 1030px |
+| `desktopLarge` | 1200px |
+| `desktopXLarge` | 1400px |
+
 The minimum supported screen width is 360px. At that width and above, nothing overflows, clips, overlaps or scrolls sideways.
