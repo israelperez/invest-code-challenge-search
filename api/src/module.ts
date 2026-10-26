@@ -67,10 +67,10 @@ export function initSearchLogModule(
   // Shared with the insights module.
   searchLog: SearchLog;
   ready: Promise<void>;
-  flushSearchLog: () => void;
+  flushSearchLog: () => boolean;
 } {
   let ready = Promise.resolve();
-  let flushSearchLog = () => {};
+  let flushSearchLog = () => true;
   if (!searchLog) {
     const persistent = createPersistentSearchLog({
       file: searchLogFile,

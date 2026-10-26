@@ -8,6 +8,8 @@ export enum ApiEndpoint {
   Searches = '/searches',
   Popular = '/popular',
   ZeroResults = '/insights/zero-results',
+  SearchLogAdmin = '/search-log',
+  SearchLogRestoreSeed = '/search-log/restore-seed',
   Version = '/version',
   Instrument = '/instruments/:id',
   InstrumentsBatch = '/instruments/batch',

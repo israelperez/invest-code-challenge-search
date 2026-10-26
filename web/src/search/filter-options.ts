@@ -80,7 +80,8 @@ export function bucketLabel(value: string, index: number, total: number): string
 export const appliedCount = (filters: Filters) =>
   (filters.kind?.length ?? 0) + (filters.issuer?.length ?? 0) + FLAGS.filter(({ key, value }) => filters[key] === value).length + (filters.units_circulating ? 1 : 0);
 
-export type AppliedChip = { id: string; label: string; next: Filters };
+// `raw` is the API value behind the label, for Show raw data.
+export type AppliedChip = { id: string; label: string; raw?: string; next: Filters };
 
 // One chip per applied value, in panel order; each `next` is the filters without just that value.
 export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
@@ -98,14 +99,15 @@ export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
     flags.filter(({ key, value }) => filters[key] === value).map(({ key, label }) => ({ id: key, label, next: without(filters, key) }));
   return [
     ...flagChips(BETASHARES_FLAGS),
-    ...kinds.map((kind) => ({ id: `kind:${kind}`, label: kindLabel(kind, true), next: drop('kind', kind) })),
-    ...[...chosenIssuers].sort(byLabel).map((slug) => ({ id: `issuer:${slug}`, label: issuerLabel(slug), next: drop('issuer', slug) })),
+    ...kinds.map((kind) => ({ id: `kind:${kind}`, label: kindLabel(kind, true), raw: kind, next: drop('kind', kind) })),
+    ...[...chosenIssuers].sort(byLabel).map((slug) => ({ id: `issuer:${slug}`, label: issuerLabel(slug), raw: slug, next: drop('issuer', slug) })),
     ...(units
       ? [
           {
             id: 'units_circulating',
             // shortcut: a bucket missing from `known` (counts not loaded yet) gets a generic label, fine as the next counts reply restores it.
             label: `Shares issued: ${bucket >= 0 ? bucketLabel(buckets[bucket], bucket, buckets.length) : 'selected range'}`,
+            raw: `${units.min},${units.max}`,
             next: without(filters, 'units_circulating'),
           },
         ]

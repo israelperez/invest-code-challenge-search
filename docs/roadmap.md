@@ -99,8 +99,9 @@ Shows what a production build would measure and lets the presenter tune the judg
 - [ ] **Extra** `analytics.track()` seam with a console adapter (styled `[analytics]` prefix). Display only: the server's search log is the source of truth
 - [ ] **Extra** Events: `search_submitted`, `search_zero_results`, `suggestion_selected`. Refinements emit none of them
 - [ ] **Extra** Gear panel **Insights** tab: zero-result terms from `GET /insights/zero-results`, grouped by dedupe key, total and per-variant counts
-- [ ] **Extra** Gear panel **Settings** tab ("Demo settings"): results per load, suggestion min characters, suggestion debounce, instrument suggestions shown, popular pills shown, recent searches kept, **Show raw data**. Saved to localStorage, with Reset to defaults
+- [ ] **Extra** Gear panel **Settings** tab ("Demo settings"): results per load, suggestion min characters, issuer suggestions shown, popular pills shown per screen size, keep popular pills on one line, recent searches kept, **Show raw data**. Saved to localStorage, with Reset to defaults
 - [ ] **Extra** **Show raw data** (`showRawData` in `config.ts`, default off): one `<RawHint value />` component, small muted text that renders nothing when off. Used on: issuer (filter, chips, rows), type, units on issue, units range options, instrument ID at the end of each row. When off, a label collision falls back to the raw values for that pair so options never look identical
+- [ ] **Extra** Fix Show raw data layout problems: with it on, the hints break some layouts and a few things (found by Israel testing #19 in the browser; deferred, not fixed in #19). Check the result row, filter rail and chips at 360 and 390 px first
 - [ ] Missing logo shows a default placeholder image from `web/src/assets/`
 
 ## 9. Quality and delivery

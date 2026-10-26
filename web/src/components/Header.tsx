@@ -1,10 +1,11 @@
 import { CloseButton, Drawer, Flex, IconButton, Image, Portal, Tabs, Text } from '@chakra-ui/react';
 import { config } from '../config';
 import { InsightsTab } from '../insights/InsightsTab';
+import { SettingsTab } from '../settings/SettingsTab';
 import gearIcon from '../assets/gear-solid-full.svg';
 import logo from '../assets/betashares-logo.svg';
 
-// Scrolls with the page. The gear opens the panel that the Insights and Settings tabs (#18, #19) fill.
+// Scrolls with the page. The gear opens the panel that the Insights and Settings tabs fill.
 export function Header() {
   return (
     <Flex as="header" padding="4" borderBottomWidth="1px" borderColor="border" justifyContent="space-between" alignItems="center">
@@ -26,12 +27,19 @@ export function Header() {
                 <Drawer.Title>Settings</Drawer.Title>
               </Drawer.Header>
               <Drawer.Body>
-                {/* #19 adds the Settings tab here. */}
-                <Tabs.Root defaultValue="insights">
-                  <Tabs.List>{config.insightsEnabled && <Tabs.Trigger value="insights">Insights</Tabs.Trigger>}</Tabs.List>
+                <Tabs.Root lazyMount unmountOnExit defaultValue={config.insightsEnabled ? 'insights' : 'settings'}>
+                  <Tabs.List>
+                    {config.insightsEnabled && <Tabs.Trigger value="insights">Insights</Tabs.Trigger>}
+                    {config.settingsEnabled && <Tabs.Trigger value="settings">Settings</Tabs.Trigger>}
+                  </Tabs.List>
                   {config.insightsEnabled && (
                     <Tabs.Content value="insights">
                       <InsightsTab />
+                    </Tabs.Content>
+                  )}
+                  {config.settingsEnabled && (
+                    <Tabs.Content value="settings">
+                      <SettingsTab />
                     </Tabs.Content>
                   )}
                 </Tabs.Root>

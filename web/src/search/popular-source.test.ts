@@ -24,4 +24,20 @@ describe('PopularSource', () => {
     await expect(source.terms()).rejects.toThrow('down');
     expect(await source.terms()).toEqual(terms);
   });
+
+  it('refresh forgets the shared result, refetches on the next call and tells subscribers', async () => {
+    const popular = vi.fn(async (_limit: number) => ({ terms, includes_seed_data: true as const }));
+    const source = createPopularSource({ popular }, { limit: 10 });
+    const listener = vi.fn();
+    source.subscribe(listener);
+    await source.terms();
+    const before = source.version();
+
+    source.refresh();
+    await source.terms();
+
+    expect(popular).toHaveBeenCalledTimes(2);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(source.version()).not.toBe(before);
+  });
 });

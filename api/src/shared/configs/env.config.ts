@@ -9,7 +9,7 @@ export interface EnvVarsConfig {
   port: number;
   searchLogFile: string;
   instrumentsFile: string;
-  // Development-only insights endpoints; admin-only in a real build. Off unless ENABLE_INSIGHTS=true.
+  // Development-only routes (insights, search log reset); admin-only in a real build. Off unless ENABLE_INSIGHTS=true.
   enableInsights: boolean;
 }
 

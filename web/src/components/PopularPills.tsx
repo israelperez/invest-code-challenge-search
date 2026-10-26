@@ -1,5 +1,5 @@
 import { Box, Button, Flex, Heading, Skeleton, VisuallyHidden, useBreakpointValue } from '@chakra-ui/react';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { config } from '../config';
 import { hiddenAfterFirstRow } from '../search/hidden-pills';
 import { useSearchBackend } from '../search/search-source-context';
@@ -12,6 +12,8 @@ const SKELETON_WIDTHS = ['16', '20', '14', '24', '20', '16'];
 // heading, since nobody searched those.
 export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
   const { popular } = useSearchBackend();
+  // Changes when the search log is reset, which refetches the terms.
+  const version = useSyncExternalStore(popular.subscribe, popular.version);
   const [labels, setLabels] = useState<{ heading: string; terms: readonly string[] } | null>(null);
   const headingId = useId();
   const rowRef = useRef<HTMLDivElement>(null);
@@ -39,7 +41,7 @@ export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
     return () => {
       current = false;
     };
-  }, [popular]);
+  }, [popular, version]);
 
   // In one-line mode pills that wrap are clipped from view; they also leave the focus order and the accessibility tree.
   useLayoutEffect(() => {

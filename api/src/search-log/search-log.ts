@@ -211,6 +211,26 @@ export class SearchLog {
   }
 
   /**
+   * Empties the log and forgets submission IDs and counts, as on a fresh start (the development reset).
+   * shortcut: a search counting while this runs can still land afterwards, fine for a demo reset.
+   */
+  clear() {
+    this.restore({ version: 1, order: 0, keys: [] });
+    this.submissions.clear();
+    this.memo.clear();
+  }
+
+  /**
+   * Swaps the history for `entries` (counted like seed()). All-or-nothing: if any count fails, the old history stays.
+   */
+  async replaceWith(entries: SeedEntry[]): Promise<void> {
+    const next = new SearchLog({ ...this.deps, onRecorded: undefined });
+    await next.seed(entries);
+    this.clear();
+    this.restore(next.snapshot());
+  }
+
+  /**
    * Adds a fake history through the normal aggregation (real counts, keys, spellings), skipping rate
    * limits and the submission ID registry. Entries with an empty dedupe key are ignored. All-or-nothing: if any count fails, nothing is added.
    */
