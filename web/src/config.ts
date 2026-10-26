@@ -54,6 +54,8 @@ export const config = {
   insightsEnabled: import.meta.env.DEV,
   // Feature flag: the Settings tab in the gear panel (development only, like insightsEnabled).
   settingsEnabled: import.meta.env.DEV,
+  // Feature flag: the Data problems section in the Insights tab (development only, like insightsEnabled).
+  dataProblemsEnabled: import.meta.env.DEV,
   // settingDescriptions.showRawData; off by default.
   showRawData: false,
   // Feature flag: send product events and problem reports to analytics (the console, for now); off prints problems as plain console output.

@@ -1,5 +1,6 @@
 import { Alert, Badge, Box, Flex, HStack, List, Stack, Text } from '@chakra-ui/react';
 import { ApiError } from '../api/client';
+import { DataProblems } from './DataProblems';
 import { useZeroResults } from './queries';
 
 export function InsightsTab() {
@@ -59,6 +60,7 @@ export function InsightsTab() {
           ))}
         </List.Root>
       )}
+      <DataProblems />
     </Stack>
   );
 }

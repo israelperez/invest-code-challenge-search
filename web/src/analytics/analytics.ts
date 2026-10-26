@@ -1,4 +1,4 @@
-import type { Report } from '../search/report';
+import { printArgs, type Report } from '../search/report';
 
 export type SearchTrigger = 'typed' | 'suggestion' | 'popular' | 'recent';
 
@@ -22,7 +22,6 @@ export function createAnalytics({ enabled, sink = consoleSink }: { enabled: bool
   const track: Analytics['track'] = (event, data) => {
     if (enabled) sink('info', event, data);
   };
-  const report: Report = (event, { level, message, detail }) =>
-    detail === undefined ? sink(level, event, message) : sink(level, event, message, detail);
+  const report: Report = (event, problem) => sink(problem.level, event, ...printArgs(problem));
   return { track, report };
 }

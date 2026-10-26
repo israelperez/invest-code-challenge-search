@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
 import '../../tests/component/jsdom-setup';
-import { ChakraProvider } from '@chakra-ui/react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { doc, fake, fakeApi, renderApp, search } from '../../tests/component/app-harness';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { doc, fake, fakeApi, problemsWrapper, renderApp, search } from '../../tests/component/app-harness';
 import { config } from '../config';
-import { system } from '../theme';
 import { ResultRow } from './ResultRow';
 
 const flags = config as { showRawData: boolean };
 const noRegion = { rules: { region: { enabled: false } } };
-const wrapper = ({ children }: { children: React.ReactNode }) => <ChakraProvider value={system}>{children}</ChakraProvider>;
+const wrapper = problemsWrapper();
 const etf = () => ({ ...doc('FUND:AU'), display_name: 'Income Fund', issuer: 'investors_mutual' });
 const share = () => ({ ...doc('ACME:AU'), display_name: 'Acme Ltd', kind: 'equity', issuer: 'investors mutual', units_circulating: '1500000' });
 
@@ -33,6 +31,14 @@ async function openPanel() {
 }
 
 describe('Show raw data in a result row', () => {
+  it.each([true, false])('renders without a React key warning with raw data %s', (on) => {
+    flags.showRawData = on;
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<ResultRow instrument={share()} />, { wrapper });
+    expect(error.mock.calls.filter((c) => String(c[0]).includes('unique "key"'))).toEqual([]);
+    error.mockRestore();
+  });
+
   it('adds the raw issuer, type and instrument ID to an ETF row, and the raw units to a share row', () => {
     flags.showRawData = true;
     const { container } = render(<ResultRow instrument={etf()} />, { wrapper });

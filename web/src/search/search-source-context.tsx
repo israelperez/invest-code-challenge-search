@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { ApiClient } from '../api/client';
 import type { Analytics } from '../analytics/analytics';
+import type { ProblemCounter } from '../insights/problem-counter';
 import type { PopularSource } from './popular-source';
 import type { Report } from './report';
 import type { RecentSearchStore } from './recent-search-store';
@@ -20,6 +21,8 @@ type SearchBackend = {
   analytics: Analytics;
   // Where data and API problems go: analytics when its flag is on, else the console.
   report: Report;
+  // Per-session problem counts, fed by every report call.
+  problems: ProblemCounter;
 };
 
 // Created once in main.tsx; tests provide their own over a fake client.

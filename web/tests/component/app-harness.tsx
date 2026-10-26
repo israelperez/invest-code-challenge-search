@@ -2,6 +2,7 @@ import './jsdom-setup';
 import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
+import type { ContextType } from 'react';
 import { vi } from 'vitest';
 import { App } from '../../src/App';
 import type {
@@ -11,6 +12,7 @@ import type {
   SearchIndexRequest,
   SuggestInstrumentsRequest,
 } from '../../src/api/types';
+import { createProblemCounter, type ProblemCounter } from '../../src/insights/problem-counter';
 import type { Analytics } from '../../src/analytics/analytics';
 import { config, popularRequestLimit } from '../../src/config';
 import { createPopularSource } from '../../src/search/popular-source';
@@ -145,20 +147,20 @@ export function freshRecentStore(limit: number = config.recentSearchLimit) {
 // Returns the spies the backend was given: product events and problem reports. Pass your own to share them.
 export function renderApp(
   api: FakeApi,
-  { recent = freshRecentStore(), analytics = { track: vi.fn() }, report = vi.fn() }: { recent?: RecentSearchStore | null; analytics?: Analytics; report?: Report } = {},
+  { recent = freshRecentStore(), analytics = { track: vi.fn() }, report = vi.fn(), problems = createProblemCounter() }: { recent?: RecentSearchStore | null; analytics?: Analytics; report?: Report; problems?: ProblemCounter } = {},
 ) {
   const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit, report });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit() }), recent, logSearch: createSearchLogger(api, () => 'test-client'), analytics, report }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit() }), recent, logSearch: createSearchLogger(api, () => 'test-client'), analytics, report, problems }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>
     </ChakraProvider>,
   );
-  return { analytics, report };
+  return { analytics, report, problems };
 }
 
 export async function search(term: string) {
@@ -169,3 +171,13 @@ export async function search(term: string) {
 
 export const rows = () => Array.from(document.querySelectorAll('ul:not([aria-label="Applied filters"]) > li:not([data-testid="skeleton-row"])'));
 export const skeletonRows = () => screen.queryAllByTestId('skeleton-row');
+
+// For rendering one component alone: only the problem seam is real, the rest of the backend is absent.
+export function problemsWrapper({ report = vi.fn(), problems = createProblemCounter() }: { report?: Report; problems?: ProblemCounter } = {}) {
+  const value = { report, problems } as unknown as ContextType<typeof SearchBackendContext>;
+  return ({ children }: { children: React.ReactNode }) => (
+    <ChakraProvider value={system}>
+      <SearchBackendContext.Provider value={value}>{children}</SearchBackendContext.Provider>
+    </ChakraProvider>
+  );
+}
