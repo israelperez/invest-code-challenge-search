@@ -122,10 +122,10 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 ## 10. Demo settings [Extra]
 
-1. Gear → Settings. Set **Suggestion debounce** to 0 and **min characters** to 1, then type `vanguard` with Network open.
-   - A request on nearly every keystroke
+1. Gear → Settings. Set **Suggestion minimum characters** to 1, then type `vanguard` with Network open.
+   - Suggestion requests start from the first character
 2. Reset to defaults, type again.
-   - One request pair after the pause
+   - Requests start only from the third character
 3. Set **Results per load** to 5.
    - Load more now adds 5 at a time, "Showing 5 of …"
 
@@ -133,7 +133,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
    - Grey raw values appear beside labels (`Investors Mutual` *investors_mutual*) and each row shows its ID
    - Two issuer options look alike: the data has `investors_mutual` and `investors mutual`, shown as given
 
-**Talking point:** page size, minimum characters and debounce were judgement calls. Each lives in `config.ts` with a one-line description, and this panel shows the trade-off at other values.
+**Talking point:** page size and minimum characters were judgement calls (the debounce too, but it stays a plain value in `config.ts`). Each lives in `config.ts` with a one-line description, and this panel shows the trade-off at other values.
 
 ## 11. Accessibility
 
