@@ -20,7 +20,12 @@ It accepts requests from any origin, so a frontend on `http://localhost:3000` ca
 | POST | `/search` | Search results: free text, filters, ordering and pages |
 | POST | `/search/index` | ID-first search: count, an ordered window of IDs and the first documents |
 | POST | `/searches` | Record an explicit search in the search log (fire-and-forget, `202`) |
+| POST | `/instruments/batch` | Full documents for a list of IDs |
 | GET | `/version` | The current `indexed_at`, to spot a restarted API |
+| GET | `/popular` | The most searched terms that return results |
+| GET | `/insights/zero-results` | Searches that found nothing, grouped by term |
+| DELETE | `/search-log` | Empty the search log (development only) |
+| POST | `/search-log/restore-seed` | Put the seeded history back (development only) |
 | POST | `/facets/:key` | Filter options with counts, e.g. `/facets/kind` |
 | GET | `/facets/keys` | The facet keys you can request |
 | GET | `/instruments/:symbol_openfigi` | One instrument, e.g. `/instruments/A200:AU` |

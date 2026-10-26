@@ -65,6 +65,77 @@ The app is a single page in [`web/`](./web/): a search input with a suggestions 
 - **API changes.** Two search endpoints and the search log are added to the mock in `api/`. Existing endpoints are unchanged. See [`api/README.md`](./api/README.md).
 - **Styling.** Chakra UI v3, themed from [`DESIGN.md`](./DESIGN.md).
 
+The gear icon in the header is for development only. It shows the searches that found nothing and a few demo settings. It appears when you run `npm run dev` and is switched off in a production build, so a real visitor wouldn't see it.
+
+## Project layout
+
+- [`api/`](./api/): the mock Search API that came with the challenge. The original endpoints are unchanged. I added new ones for searching, fetching instruments in bulk and recording searches.
+- [`web/`](./web/): the search page, built with React. The search logic sits in plain TypeScript files that can be tested on their own, and the screen components stay small.
+- [`docs/`](./docs/): the walkthrough, the decision records, the roadmap and the planning notes.
+
+## Security notes
+
+This is a demo, and the API is a local mock, so security is a lot lighter than a real product would need. Here is what is and isn't protected.
+
+- The app shows "popular searches" built from what people have searched. Anyone can see them, so someone could try to game the list. To make that harder, a term only counts once several different users have searched it, and it only appears if it actually returns results. Each user is also limited in how fast they can log searches.
+- "Different users" is a guess. The browser makes up a random ID for itself and sends it with each search, and nothing proves it belongs to a real person. Someone who sends lots of made-up IDs could still push a term up. The speed limits slow that down but don't stop it, and they reset whenever the API restarts.
+- The new endpoints check what they are sent. Unknown fields, bad values, badly formed IDs, requests over 32KB and very long search terms are rejected with a 400 error. The search log has a size cap and drops old entries, so a flood of unique terms can't fill up memory. The original endpoints behave exactly as they did before.
+- There is no login. Anyone who can reach the API can read the zero-result terms and reset the popular searches. That is why the screen that uses them is development-only. The API also allows requests from any website, which is how the mock was set up. That is convenient for development but isn't a security measure.
+- Text a user types is only ever shown as plain text, never run as HTML. This matters because logged search terms are displayed back in the insights view.
+- `npm audit` reports no known vulnerabilities in `api/` or `web/`.
+
+The reasoning for each choice is in the [walkthrough](./docs/walkthrough.md) and [ADR 0002](./docs/adr/0002-server-side-search-log.md).
+
+## What a real build would add
+
+The challenge is a demo, so these were left out on purpose. A real product would need them.
+
+- A login for staff, so only they can see which searches found nothing and reset the popular searches.
+- A proper way to know who a visitor is, and protection against bots and floods of requests at the front door of the system rather than inside the API.
+- A database for the search log. Today it lives in a file next to the API, and it is lost if that file is deleted.
+- A proper analytics system. At the moment searches are only printed in the browser console, with the same data kept in the API's log file. A real one would send them to a data warehouse and produce a regular report of what people searched for and didn't find.
+- A dedicated endpoint for the suggestions as you type. The app currently builds them from two existing calls. The code is already set up so the endpoint can be swapped in.
+- "Did you mean" for typos, for example someone typing `VSG` when they mean `VGS`.
+- An error reporting service in place of the browser console, and a font file the project owns. The Betashares font (Rund Text) is loaded from another website here, with Inter as the backup, because I haven't confirmed I'm allowed to include the font files.
+- Prices and performance, if the data included them. The mock doesn't have any.
+
+The full list is in the [roadmap](./docs/roadmap.md).
+
+## What isn't automated
+
+`npm test` runs the whole automated suite. It checks the API, the search logic, the page talking to a real running API, and the on-screen components, including keyboard use and screen reader labels. It can't check how the page looks.
+
+I didn't add a browser-based test, because the tool for it needs hundreds of megabytes of extra downloads for a single check. So these are checked by hand using the demo flows in the [walkthrough](./docs/walkthrough.md):
+
+- the layout on a phone, a tablet and a desktop
+- using the page with a real screen reader
+
+## How AI was used
+
+Claude Code (Anthropic) wrote most of the code, tests and documentation. A second model, OpenAI Codex, reviewed the changes before each pull request.
+
+My part was strategy, architecture and quality control. Before any building started, I worked out the plan with Claude and settled the decisions that shape the app. Those are recorded in [`docs/adr/`](./docs/adr/) and the [walkthrough](./docs/walkthrough.md), with the options I rejected and why.
+
+- Architecture: I chose the ID-first search design (the server returns ordered IDs and the browser fetches only the instruments it is missing), and the seams the UI depends on, so data sources can be swapped without touching components.
+- API contract: I shaped the new endpoints around what the frontend needs, and kept the original endpoints unchanged so nothing already built could break.
+- Risk and security: I decided how the popular searches are protected from gaming, and what the demo would and wouldn't claim to secure.
+- Scope: I decided what to build, what to cut and what to leave documented as a next step.
+- Frontend structure: I kept the search logic in plain TypeScript modules with no React, and the components thin, so the logic can be tested without rendering. I also set how server data is cached and kept fresh, so a changed search snapshot resets the app cleanly instead of showing stale results.
+- Accessibility: I required a proper combobox pattern for the search input (labels, ARIA, keyboard use, focus handling and screen reader announcements), and automated checks for it with jest-axe.
+- Responsive design: I built mobile first, with a filter drawer on phones and a filter rail on wider screens, and ruled out layout shifts and sticky bars that hide content.
+- Design system: I kept components on Chakra's semantic tokens with no hard-coded colours, so the Betashares theme is configuration only. I corrected the automated brand extraction in `DESIGN.md` where it failed contrast (WCAG AA) or used the wrong body font.
+- Testing strategy: I set the rule that everything runs from one `npm test` with no extra tooling, and decided which risks are covered by automated tests and which are checked by hand.
+
+Then, for each piece of work, I:
+
+- made the product and design calls, and changed the brief when I saw the result
+- tried every change in the browser
+- read and reviewed the code and the pull requests
+- debugged problems as they came up, including bugs in earlier work
+- merged every pull request myself
+
+Each commit is under my name and ends with a `Co-Authored-By` line naming the model that wrote it.
+
 ## Project docs
 
 | File | What's in it |
