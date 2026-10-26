@@ -52,8 +52,8 @@ describe('Insights tab in the gear panel', () => {
     renderApp(fakeApi());
     openPanel();
 
-    expect(await screen.findByText(/development only/i)).toBeTruthy();
-    expect(screen.getByText(/demo data/i)).toBeTruthy();
+    expect(await screen.findByText('Development only')).toBeTruthy();
+    expect(screen.getByText('Demo data')).toBeTruthy();
   });
 
   it('lists each group with its key, clients, total and spellings', async () => {
