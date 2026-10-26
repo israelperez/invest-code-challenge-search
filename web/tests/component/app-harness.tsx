@@ -91,6 +91,8 @@ export function fakeApi() {
       ],
       includes_seed_data: true as const,
     })),
+    clearSearchLog: vi.fn(async () => undefined),
+    restoreSeed: vi.fn(async () => undefined),
     logSearch: vi.fn(async (_term: string, _submissionId: string, _clientId: string) => undefined),
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),
     searchIndex: vi.fn(async (body: SearchIndexRequest, _signal?: AbortSignal) => {
@@ -150,7 +152,7 @@ export function renderApp(
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit }), recent, logSearch: createSearchLogger(api, () => 'test-client'), analytics, report }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit() }), recent, logSearch: createSearchLogger(api, () => 'test-client'), analytics, report }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>

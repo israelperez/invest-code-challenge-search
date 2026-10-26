@@ -29,8 +29,8 @@ export function createApiClient(baseUrl: string) {
       const body: unknown = await response.json().catch(() => undefined);
       throw new ApiError(response.status, `${init?.method ?? 'GET'} ${path} failed with ${response.status}`, body);
     }
-    // 202 Accepted has no body.
-    if (response.status === 202) return undefined as T;
+    // 202 Accepted and 204 No Content have no body.
+    if (response.status === 202 || response.status === 204) return undefined as T;
     return (await response.json()) as T;
   }
 
@@ -67,6 +67,9 @@ export function createApiClient(baseUrl: string) {
     popular: (limit: number, signal?: AbortSignal) => request<PopularResponse>(`/popular?limit=${limit}`, { signal }),
     // Dev only: 404 when the API runs without ENABLE_INSIGHTS.
     zeroResults: (signal?: AbortSignal) => request<ZeroResultsResponse>('/insights/zero-results', { signal }),
+    // Dev only (404 without ENABLE_INSIGHTS): empty the search log, or replace it with the demo seed.
+    clearSearchLog: () => request<void>('/search-log', { method: 'DELETE' }),
+    restoreSeed: () => request<void>('/search-log/restore-seed', { method: 'POST' }),
     // Fire-and-forget log of an explicit search; the server answers 202 with no body.
     logSearch: (term: string, submissionId: string, clientId: string) =>
       request<void>('/searches', {
