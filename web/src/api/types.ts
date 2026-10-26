@@ -43,3 +43,11 @@ export type SearchIndexResponse = {
 };
 
 export type VersionResponse = { indexed_at: number };
+
+export type InstrumentsBatchRequest = { ids: string[]; snapshot: number };
+
+export type InstrumentsBatchResponse = {
+  documents: InstrumentDocument[];
+  missing: string[];
+  indexed_at: number;
+};

@@ -6,7 +6,8 @@ import { useSearchIndex } from './search/queries';
 
 export function App() {
   const [term, setTerm] = useState<string | null>(null);
-  const query = useSearchIndex(term === null ? null : { term, filters: {} });
+  const state = term === null ? null : { term, filters: {} };
+  const query = useSearchIndex(state);
 
   return (
     <Container maxWidth="4xl" paddingY="8">
@@ -14,7 +15,7 @@ export function App() {
         ASX-listed instrument search
       </Heading>
       <SearchForm onSearch={setTerm} />
-      {term !== null && <Results query={query} />}
+      {state && <Results state={state} query={query} />}
     </Container>
   );
 }
