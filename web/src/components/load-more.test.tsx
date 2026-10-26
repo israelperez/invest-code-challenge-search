@@ -1,94 +1,11 @@
 // @vitest-environment jsdom
 import '../../tests/component/jsdom-setup';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from '../App';
 import { ApiError } from '../api/client';
-import type { InstrumentDocument, InstrumentsBatchRequest, SearchIndexRequest } from '../api/types';
+import { catalogues, deferred, doc, fake, fakeApi, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
 import { config } from '../config';
-import { createSearchSource } from '../search/search-source';
-import { SearchBackendContext } from '../search/search-source-context';
 
-// A fake API over catalogues named by the search text: "a" has 834 instruments, "b" 20, "c" 18 and "d" 19.
-const catalogue = (prefix: string, length: number) =>
-  Array.from({ length }, (_, i) => `${prefix}${String(i).padStart(4, '0')}:AU`);
-const catalogues: Record<string, string[]> = {
-  a: catalogue('A', 834),
-  b: catalogue('B', 20),
-  c: catalogue('C', 18),
-  d: catalogue('D', 19),
-};
-let indexedAt = 1;
-const doc = (id: string): InstrumentDocument => ({
-  symbol: id.split(':')[0],
-  symbol_openfigi: id,
-  display_name: `Fund ${id} v${indexedAt}`,
-  kind: 'etf',
-  currency: 'AUD',
-  logo: null,
-  issuer: 'acme',
-  is_betashares: false,
-  is_flagship_fund: false,
-  is_portfolio_excluded: false,
-  is_auto_invest_included: false,
-  units_circulating: null,
-});
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((res, rej) => ((resolve = res), (reject = rej)));
-  return { promise, resolve, reject };
-}
-
-function fakeApi() {
-  return {
-    version: vi.fn(async () => ({ indexed_at: indexedAt })),
-    searchIndex: vi.fn(async (body: SearchIndexRequest) => {
-      const all = catalogues[body.search_text ?? 'a'];
-      const window = all.slice(body.id_offset ?? 0, (body.id_offset ?? 0) + (body.id_limit ?? 1000));
-      const next = (body.id_offset ?? 0) + window.length;
-      return {
-        indexed_at: indexedAt,
-        count: all.length,
-        ids: window,
-        next_id_offset: next < all.length ? next : null,
-        ...(body.include?.includes('documents') && { documents: window.slice(0, body.document_limit).map(doc) }),
-      };
-    }),
-    instrumentsBatch: vi.fn(async (body: InstrumentsBatchRequest, _signal?: AbortSignal) => ({
-      documents: body.ids.map(doc),
-      missing: [] as string[],
-      indexed_at: indexedAt,
-    })),
-  };
-}
-type FakeApi = ReturnType<typeof fakeApi>;
-
-function renderApp(api: FakeApi) {
-  const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit });
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
-    <ChakraProvider value={defaultSystem}>
-      <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source }}>
-          <App />
-        </SearchBackendContext.Provider>
-      </QueryClientProvider>
-    </ChakraProvider>,
-  );
-}
-
-async function search(term: string) {
-  fireEvent.change(screen.getByLabelText('Search instruments'), { target: { value: term } });
-  fireEvent.click(screen.getByRole('button', { name: 'Search' }));
-  await screen.findByRole('heading', { level: 2 });
-}
-
-const rows = () => Array.from(document.querySelectorAll('li:not([data-testid="skeleton-row"])'));
-const skeletonRows = () => screen.queryAllByTestId('skeleton-row');
 const loadMoreButton = () => screen.queryByRole('button', { name: 'Load more' });
 const status = () => screen.getByRole('status');
 
@@ -99,7 +16,7 @@ async function clickLoadMore() {
 }
 
 beforeEach(() => {
-  indexedAt = 1;
+  fake.indexedAt = 1;
 });
 afterEach(() => {
   cleanup();
@@ -122,7 +39,7 @@ describe('Load more', () => {
 
     // 15 to 17 came with the first batch (document_limit 15 + orphanSize), so only the rest is requested.
     const ids = catalogues.a.slice(18, 30);
-    await act(async () => batch.resolve({ documents: ids.map(doc), missing: [], indexed_at: indexedAt }));
+    await act(async () => batch.resolve({ documents: ids.map(doc), missing: [], indexed_at: fake.indexedAt }));
 
     expect(skeletonRows()).toHaveLength(0);
     expect(rows()).toHaveLength(30);
@@ -250,7 +167,7 @@ describe('Load more', () => {
     expect(rows()).toHaveLength(30);
 
     // The API restarts on new data: the next batch call is stale and the first batch comes back as v2.
-    indexedAt = 2;
+    fake.indexedAt = 2;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     api.instrumentsBatch.mockRejectedValueOnce(new ApiError(409, 'stale', { indexed_at: 2 }));
     const reload = deferred<Awaited<ReturnType<FakeApi['searchIndex']>>>();
@@ -296,7 +213,7 @@ describe('Load more', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     api.searchIndex.mockRejectedValueOnce(new ApiError(500, 'boom'));
     renderApp(api);
-    fireEvent.change(screen.getByLabelText('Search instruments'), { target: { value: 'a' } });
+    fireEvent.change(screen.getByLabelText('Search stocks and ETFs'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await screen.findByText('Something went wrong');

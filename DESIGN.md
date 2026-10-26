@@ -74,3 +74,5 @@ Stack: `"Rund Text", Inter, -apple-system, system-ui, sans-serif`. The host serv
 - **Skeleton**: `surface-card` base, mirrors the result card's dimensions exactly.
 
 Interactive elements never change size or weight between states (no layout shift).
+
+The minimum supported screen width is 360px. At that width and above, nothing overflows, clips, overlaps or scrolls sideways.

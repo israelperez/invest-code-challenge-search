@@ -1,7 +1,7 @@
-import { Alert, Box, Button, Flex, Heading, Skeleton, Text, VisuallyHidden } from '@chakra-ui/react';
+import { Alert, Box, Button, Field, Flex, Heading, NativeSelect, Skeleton, Text, VisuallyHidden } from '@chakra-ui/react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import type { InstrumentDocument, SearchIndexResponse } from '../api/types';
+import type { InstrumentDocument, OrderBy, SearchIndexResponse } from '../api/types';
 import { config } from '../config';
 import type { SearchState } from '../search/build-search-request';
 import { useRestartSearch } from '../search/queries';
@@ -23,33 +23,80 @@ const SkeletonRows = () =>
     </Flex>
   ));
 
-export function Results({ state, query }: { state: SearchState; query: UseQueryResult<SearchIndexResponse> }) {
-  if (query.isError) {
-    return (
-      <Alert.Root status="error" marginTop="6">
-        <Alert.Indicator />
-        <Alert.Content>
-          <Alert.Title>Something went wrong</Alert.Title>
-          <Alert.Description>We could not load results. Check your connection and try again.</Alert.Description>
-        </Alert.Content>
-        <Button onClick={() => void query.refetch()} minWidth="24">
-          Retry
-        </Button>
-      </Alert.Root>
-    );
-  }
+// Best match is the API default, so it has no order_by.
+const SORT_OPTIONS: { label: string; value: OrderBy | undefined }[] = [
+  { label: 'Best match', value: undefined },
+  { label: 'Exchange code (ticker) A – Z', value: 'symbol.asc' },
+  { label: 'Exchange code (ticker) Z – A', value: 'symbol.desc' },
+  { label: 'Investment name A – Z', value: 'display_name.asc' },
+  { label: 'Investment name Z – A', value: 'display_name.desc' },
+  { label: 'Shares issued high – low', value: 'units_circulating.desc' },
+  { label: 'Shares issued low – high', value: 'units_circulating.asc' },
+];
 
-  if (query.isPending) {
-    return (
-      <Box marginTop="6" aria-busy="true" aria-label="Loading results">
-        <List>
-          <SkeletonRows />
-        </List>
-      </Box>
-    );
-  }
+export function Results({
+  state,
+  query,
+  onSortChange,
+}: {
+  state: SearchState;
+  query: UseQueryResult<SearchIndexResponse>;
+  onSortChange: (orderBy: OrderBy | undefined) => void;
+}) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const count = query.data?.count ?? 0;
 
-  return <LoadedResults state={state} data={query.data} />;
+  // The header stays mounted through error, loading and loaded, so the select keeps focus and never moves.
+  return (
+    <Box marginTop="6">
+      <Flex justifyContent="space-between" alignItems="center" gap="4" wrap="wrap">
+        {/* Always present, so wrapping depends on container width alone, not on whether the heading has loaded. */}
+        <Box minWidth="40" minHeight="8" display="flex" alignItems="center">
+          {query.data && (
+            <Heading as="h2" size="md" aria-live="polite" tabIndex={-1} ref={headingRef}>
+              {count === 1 ? '1 result' : `${count} results`}
+            </Heading>
+          )}
+        </Box>
+        <Field.Root orientation="horizontal" width="auto" maxWidth="full" marginStart="auto">
+          <Field.Label flex="none" whiteSpace="nowrap">
+            Sort by
+          </Field.Label>
+          {/* Fixed width, sized for the longest label, so the select never resizes with the chosen option. */}
+          <NativeSelect.Root width="72" maxWidth="full">
+            <NativeSelect.Field value={state.order_by ?? ''} onChange={(e) => onSortChange((e.target.value || undefined) as OrderBy | undefined)}>
+              {SORT_OPTIONS.map(({ label, value }) => (
+                <option key={label} value={value ?? ''}>
+                  {label}
+                </option>
+              ))}
+            </NativeSelect.Field>
+            <NativeSelect.Indicator />
+          </NativeSelect.Root>
+        </Field.Root>
+      </Flex>
+      {query.isError ? (
+        <Alert.Root status="error" marginTop="6">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Something went wrong</Alert.Title>
+            <Alert.Description>We could not load results. Check your connection and try again.</Alert.Description>
+          </Alert.Content>
+          <Button onClick={() => void query.refetch()} minWidth="24">
+            Retry
+          </Button>
+        </Alert.Root>
+      ) : query.isPending ? (
+        <Box aria-busy="true" aria-label="Loading results">
+          <List>
+            <SkeletonRows />
+          </List>
+        </Box>
+      ) : (
+        <LoadedResults state={state} data={query.data} headingRef={headingRef} />
+      )}
+    </Box>
+  );
 }
 
 // Load-more progress. It belongs to one first batch (`base`) and starts over when that changes.
@@ -70,13 +117,20 @@ const startProgress = (base: SearchIndexResponse): Progress => ({
   firstNewId: null,
 });
 
-function LoadedResults({ state, data }: { state: SearchState; data: SearchIndexResponse }) {
+function LoadedResults({
+  state,
+  data,
+  headingRef,
+}: {
+  state: SearchState;
+  data: SearchIndexResponse;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
+}) {
   const { source } = useSearchBackend();
   const restart = useRestartSearch(state);
   const [stored, setProgress] = useState(() => startProgress(data));
   const [announcement, setAnnouncement] = useState('');
   const abortRef = useRef<AbortController | null>(null);
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const firstNewRef = useRef<HTMLDivElement>(null);
 
   // A new first batch (new search, refinement or restart) discards the progress made on the old one.
@@ -131,10 +185,7 @@ function LoadedResults({ state, data }: { state: SearchState; data: SearchIndexR
 
   const hasMore = progress.consumed < count;
   return (
-    <Box marginTop="6">
-      <Heading as="h2" size="md" aria-live="polite" tabIndex={-1} ref={headingRef}>
-        {count === 1 ? '1 result' : `${count} results`}
-      </Heading>
+    <Box>
       <VisuallyHidden role="status" aria-live="polite">
         {announcement}
       </VisuallyHidden>
