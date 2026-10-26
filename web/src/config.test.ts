@@ -29,6 +29,12 @@ describe('config', () => {
     expect(config.suggestionDebounceMs).toBe(200);
   });
 
+  it('never shows more popular pills than the seed holds', () => {
+    for (const shown of Object.values(config.popularShown)) {
+      expect(shown).toBeLessThanOrEqual(config.popularMax);
+    }
+  });
+
   it('has only sane values', () => {
     for (const value of Object.values(config)) {
       expect(value).not.toBeUndefined();

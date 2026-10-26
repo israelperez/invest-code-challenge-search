@@ -11,7 +11,8 @@ import type {
   SearchIndexRequest,
   SuggestInstrumentsRequest,
 } from '../../src/api/types';
-import { config } from '../../src/config';
+import { config, popularRequestLimit } from '../../src/config';
+import { createPopularSource } from '../../src/search/popular-source';
 import { createSearchLogger } from '../../src/search/search-logger';
 import { createSearchSource } from '../../src/search/search-source';
 import { createSuggestionSource } from '../../src/search/suggestion-source';
@@ -72,6 +73,13 @@ export function deferred<T>() {
 
 export function fakeApi() {
   return {
+    popular: vi.fn(async (_limit: number, _signal?: AbortSignal) => ({
+      terms: [
+        { label: 'A200', key: 'a200', clients: 9 },
+        { label: 'Vanguard', key: 'vanguard', clients: 7 },
+      ],
+      includes_seed_data: true as const,
+    })),
     logSearch: vi.fn(async (_term: string, _submissionId: string, _clientId: string) => undefined),
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),
     searchIndex: vi.fn(async (body: SearchIndexRequest, _signal?: AbortSignal) => {
@@ -120,7 +128,7 @@ export function renderApp(api: FakeApi) {
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), logSearch: createSearchLogger(api, () => 'test-client') }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit }), logSearch: createSearchLogger(api, () => 'test-client') }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>

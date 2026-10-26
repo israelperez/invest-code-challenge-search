@@ -2,6 +2,7 @@ import type {
   FacetEntry,
   InstrumentsBatchRequest,
   InstrumentsBatchResponse,
+  PopularResponse,
   SearchIndexRequest,
   SearchIndexResponse,
   SuggestInstrumentsRequest,
@@ -62,6 +63,7 @@ export function createApiClient(baseUrl: string) {
         body: JSON.stringify(body),
         signal,
       }),
+    popular: (limit: number, signal?: AbortSignal) => request<PopularResponse>(`/popular?limit=${limit}`, { signal }),
     // Fire-and-forget log of an explicit search; the server answers 202 with no body.
     logSearch: (term: string, submissionId: string, clientId: string) =>
       request<void>('/searches', {

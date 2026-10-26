@@ -15,7 +15,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 1. Load the page.
    - Skeleton cards show, then results: Betashares instruments first, then A–Z
-   - Top 10 popular search pills sit under the input
+   - Popular search pills (6 on phones, 8 on tablet, 13 on desktop, set in `popularShown` in `web/src/config.ts`) sit under the input in a "Popular searches" section; the history is a fake one the API seeds on startup, led by Betashares flagships, and with no popular data (or a failed fetch) a "Featured Betashares ETFs" list shows instead
 2. Focus the empty input.
    - No recent searches yet, so the popup shows only a short hint
 
@@ -31,7 +31,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 **Proves:** commonly searched terms guide users **[AC]**; a pill click counts as a search.
 
-**Talking point:** popular terms come from the API's own search log (`GET /popular`), seeded with a fake history and updated live. The server dedupes them (`VGS vanguard` and `vanguard VGS` are one term, `VGS ASX` folds into `VGS`), ranks by distinct users rather than raw hits so one script can't flood the pills, and only terms with results qualify.
+**Talking point:** popular terms come from the API's own search log (`GET /popular`), seeded with a fake history on the first start, kept in a file and updated live. The server dedupes them (`VGS vanguard` and `vanguard VGS` are one term, `VGS ASX` folds into `VGS`), ranks by distinct users rather than raw hits so one script can't flood the pills, and only terms with results qualify.
 
 ## 3. Suggestions while typing
 
@@ -126,7 +126,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 2. Search `vsg ` again, reopen.
    - Same group, count ticks up
 
-**Talking point:** this is the view a product owner would get from a real analytics pipeline. Here it's `GET /insights/zero-results` over the API's in-memory search log: a seeded fake history plus every live search. In production it sits behind admin auth.
+**Talking point:** this is the view a product owner would get from a real analytics pipeline. Here it's `GET /insights/zero-results` over the API's search log, which is kept in a file: a fake history seeded on the first start plus every live search since. In production it sits behind admin auth.
 
 ## 11. Demo settings [Extra]
 
@@ -163,7 +163,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 ## 14. Responsive
 
 1. DevTools device toolbar, ~375px wide (mobile, 0–759px).
-   - Single column; popular pills scroll on one line; `[Filters]` and `[Sort]` sit above the results
+   - Single column; popular pills wrap; `[Filters]` and `[Sort]` sit above the results
 2. Tap **Filters**, tick two options.
    - Drawer counts and "Show X results" update; results behind don't
 3. Close the drawer with ×.
@@ -238,7 +238,7 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | Decision | Why | Rejected |
 | --- | --- | --- |
 | **Popular search** = most searched across all users; **Recent search** = this user's own history | Different populations, different jobs: guide newcomers vs repeat your own searches | One merged list |
-| Popular shown as top 10 pills under the input; recent and suggestions in the input's popup | Popular is visible without interaction; the popup stays focused on what the user is typing | Popular inside the popup only |
+| Popular shown as pills under the input (6, 8 or 13 by screen size, from one request for 13; with `popularSearchOneLine` on, only the pills that fit on one line show); recent and suggestions in the input's popup | Popular is visible without interaction; the popup stays focused on what the user is typing | Popular inside the popup only |
 | Suggestions fire after 200ms pause and from 3 characters | Fewer wasted calls. The shortest ticker is 3 characters, so every instrument stays reachable | Firing on every keystroke |
 | Popup has two groups: search terms and instruments | Terms let users refine before completing the query; instruments jump straight to a match | Instruments only |
 | Data reached through seams (`SearchSource`, `SuggestionSource`, `PopularSource`, `RecentSearchStore`) | Real life has thousands of suggested terms and needs a server; swapping an adapter for a real endpoint changes no UI | UI calling the API directly |

@@ -49,7 +49,7 @@ export function App() {
       <Heading as="h1" size="2xl" marginBottom="6">
         ASX-listed instrument search
       </Heading>
-      <SearchForm onSearch={search} />
+      <SearchForm onSearch={search} showPopular={term === null} />
       {state && (
         <Flex gap="6" alignItems="flex-start">
           {live && <Rail term={state.term} pending={pending} onPendingChange={setPending} />}
