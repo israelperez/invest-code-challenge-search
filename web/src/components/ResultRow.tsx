@@ -1,21 +1,27 @@
 import { Badge, Box, Flex, Image, Text } from '@chakra-ui/react';
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import type { InstrumentDocument } from '../api/types';
 import defaultLogo from '../assets/default-logo.svg';
 import { issuerLabel } from '../format/issuer-label';
 import { kindLabel } from '../format/kind-label';
+import { useSearchBackend } from '../search/search-source-context';
 import { RawHint } from '../settings/RawHint';
 
 const unitsFormat = new Intl.NumberFormat('en-AU');
 
-function Logo({ src }: { src: string | null }) {
+function Logo({ src, id, symbol }: { src: string | null; id: string; symbol: string }) {
   const [failed, setFailed] = useState(false);
+  const { report, problems } = useSearchBackend();
   return (
     <Image
       src={failed || !src ? defaultLogo : src}
       alt=""
       referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
+      onError={() => {
+        setFailed(true);
+        // The fallback image failing is not the logo's fault; only a real logo counts.
+        if (src && !failed && problems.firstTime('logo_failed', id)) report('logo_failed', { level: 'warn', message: 'Logo failed to load, showing the default', detail: id, entries: [`${symbol} (${src})`] });
+      }}
       boxSize="10"
       flexShrink={0}
       objectFit="contain"
@@ -30,6 +36,11 @@ type ResultRowProps = {
 };
 
 export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
+  const { report, problems } = useSearchBackend();
+  const id = instrument.symbol_openfigi;
+  useEffect(() => {
+    if (!instrument.display_name?.trim() && problems.firstTime('no_display_name', id)) report('no_display_name', { level: 'warn', message: 'Instrument has no display name', detail: id, entries: [instrument.symbol === id ? id : `${id} (${instrument.symbol})`] });
+  }, [instrument.display_name, instrument.symbol, id, report, problems]);
   const issuer = issuerLabel(instrument.issuer);
   const units = instrument.kind === 'equity' && instrument.units_circulating;
   return (
@@ -45,23 +56,34 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
       borderBottomWidth="1px"
       borderColor="border"
     >
-      <Logo src={instrument.logo} />
+      <Logo src={instrument.logo} id={id} symbol={instrument.symbol} />
       <Box flex="1" minWidth="0">
         <Flex gap="2" alignItems="baseline" wrap="wrap">
           <Text fontWeight="semibold">{instrument.symbol}</Text>
           <Text>{instrument.display_name}</Text>
         </Flex>
         <Text color="fg.muted" fontSize="sm">
-          {(
-            [
-              ['kind', <>{kindLabel(instrument.kind)}<RawHint value={instrument.kind} /></>],
-              ['issuer', issuer && <>{issuer}<RawHint value={instrument.issuer!} /></>],
-              ['units', units && <>{unitsFormat.format(Number(units))} units on issue<RawHint value={units} /></>],
-            ] as const
-          )
+          {[
+            ['kind', <>
+              {kindLabel(instrument.kind)}
+              <RawHint value={instrument.kind} />
+            </>],
+            ['issuer', issuer && (
+              <>
+                {issuer}
+                <RawHint value={instrument.issuer!} />
+              </>
+            )],
+            ['units', units && (
+              <>
+                {unitsFormat.format(Number(units))} units on issue
+                <RawHint value={units} />
+              </>
+            )],
+          ]
             .filter(([, part]) => part)
             .map(([key, part], i) => (
-              <Fragment key={key}>
+              <Fragment key={key as string}>
                 {i > 0 && ' · '}
                 {part}
               </Fragment>

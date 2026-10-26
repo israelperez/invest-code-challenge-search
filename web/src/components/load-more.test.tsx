@@ -72,7 +72,7 @@ describe('Load more', () => {
 
     expect(rows()).toHaveLength(28);
     expect(status().textContent).toBe('13 more loaded, showing 28 of 834');
-    expect(report).toHaveBeenCalledWith('batch_ids_missing', { level: 'warn', message: expect.any(String), detail: missing });
+    expect(report).toHaveBeenCalledWith('batch_ids_missing', { level: 'warn', message: expect.any(String), detail: missing, entries: missing });
 
     await clickLoadMore();
     expect(api.instrumentsBatch.mock.calls[1][0].ids).toEqual(catalogues.a.slice(30, 45));
@@ -85,7 +85,7 @@ describe('Load more', () => {
 
     api.instrumentsBatch.mockRejectedValueOnce(new ApiError(500, 'boom'));
     await clickLoadMore();
-    expect(report).toHaveBeenCalledWith('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: expect.objectContaining({ status: 500 }) });
+    expect(report).toHaveBeenCalledWith('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] });
 
     expect(rows()).toHaveLength(15);
     expect(loadMoreButton()).toBeNull();
@@ -203,7 +203,7 @@ describe('Load more', () => {
     api.searchIndex.mockRejectedValueOnce(new ApiError(500, 'boom'));
     await clickLoadMore();
 
-    await waitFor(() => expect(report).toHaveBeenCalledWith('restart_failed', { level: 'error', message: expect.any(String), detail: expect.objectContaining({ status: 500 }) }));
+    await waitFor(() => expect(report).toHaveBeenCalledWith('restart_failed', { level: 'error', message: expect.any(String), detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] }));
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
@@ -217,11 +217,12 @@ describe('Load more', () => {
 
     expect(rows()).toHaveLength(15);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-    expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: expect.arrayContaining([ids[0]]) });
+    expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: expect.arrayContaining([ids[0]]), entries: [ids[0]] });
     expect(report).toHaveBeenCalledWith('load_more_failed', {
       level: 'error',
       message: 'Loading more results failed',
       detail: expect.objectContaining({ message: expect.stringContaining(ids[0]) }),
+      entries: [expect.stringContaining(`a: Batch response omitted requested IDs: ${ids[0]}`)],
     });
   });
 
@@ -238,6 +239,6 @@ describe('Load more', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await screen.findByText('Something went wrong');
-    expect(report).toHaveBeenCalledWith('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: expect.objectContaining({ status: 500 }) });
+    expect(report).toHaveBeenCalledWith('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] });
   });
 });

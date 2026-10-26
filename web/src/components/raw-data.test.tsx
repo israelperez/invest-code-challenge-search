@@ -1,17 +1,15 @@
 // @vitest-environment jsdom
 import '../../tests/component/jsdom-setup';
-import { ChakraProvider } from '@chakra-ui/react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { doc, fake, fakeApi, renderApp, search } from '../../tests/component/app-harness';
+import { doc, fake, fakeApi, problemsWrapper, renderApp, search } from '../../tests/component/app-harness';
 import { config } from '../config';
-import { system } from '../theme';
 import { ResultRow } from './ResultRow';
 
 const flags = config as { showRawData: boolean };
 const noRegion = { rules: { region: { enabled: false } } };
-const wrapper = ({ children }: { children: React.ReactNode }) => <ChakraProvider value={system}>{children}</ChakraProvider>;
+const wrapper = problemsWrapper();
 const etf = () => ({ ...doc('FUND:AU'), display_name: 'Income Fund', issuer: 'investors_mutual' });
 const share = () => ({ ...doc('ACME:AU'), display_name: 'Acme Ltd', kind: 'equity', issuer: 'investors mutual', units_circulating: '1500000' });
 

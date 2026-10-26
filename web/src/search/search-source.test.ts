@@ -119,7 +119,7 @@ describe('SearchSource incomplete batch', () => {
     api.instrumentsBatch.mockResolvedValueOnce({ documents: [doc('C:AU')], missing: [], indexed_at: 1 });
 
     await expect(source.loadMore(state, 2)).rejects.toThrow(/D:AU/);
-    expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: ['D:AU'] });
+    expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: ['D:AU'], entries: ['D:AU'] });
 
     api.instrumentsBatch.mockClear();
     const retry = await source.loadMore(state, 2);
@@ -139,6 +139,6 @@ describe('SearchSource missing IDs', () => {
     const batch = await source.loadMore(state, 2);
 
     expect(batch.documents.map((d) => d.symbol_openfigi)).toEqual(['C:AU']);
-    expect(report).toHaveBeenCalledWith('batch_ids_missing', { level: 'warn', message: expect.any(String), detail: ['D:AU'] });
+    expect(report).toHaveBeenCalledWith('batch_ids_missing', { level: 'warn', message: expect.any(String), detail: ['D:AU'], entries: ['D:AU'] });
   });
 });

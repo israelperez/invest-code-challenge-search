@@ -5,6 +5,7 @@ import type { InstrumentDocument, OrderBy, SearchIndexResponse } from '../api/ty
 import { config } from '../config';
 import type { SearchState } from '../search/build-search-request';
 import { useRestartSearch } from '../search/queries';
+import { failureEntry } from '../search/report';
 import { SnapshotStaleError } from '../search/search-source';
 import { useSearchBackend } from '../search/search-source-context';
 import { ResultRow } from './ResultRow';
@@ -188,10 +189,10 @@ function LoadedResults({
           return;
         } catch (restartError) {
           if (signal.aborted) return;
-          report('restart_failed', { level: 'error', message: 'Restarting after a stale snapshot failed', detail: restartError });
+          report('restart_failed', { level: 'error', message: 'Restarting after a stale snapshot failed', detail: restartError, entries: [failureEntry(state.term, restartError)] });
         }
       } else {
-        report('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: error });
+        report('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: error, entries: [failureEntry(state.term, error)] });
       }
       setProgress({ ...progress, status: 'error' });
     }

@@ -22,6 +22,17 @@ describe('console analytics', () => {
     expect(error).toHaveBeenCalledWith('%c[analytics]', expect.any(String), 'load_more_failed', 'failed', 'boom');
   });
 
+  it('appends the entries as the final argument only when there are some', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { report } = createAnalytics({ enabled: true });
+    report('logo_failed', { level: 'warn', message: 'm', detail: 'GRV:AU', entries: ['GRV (https://example.test/a.png)'] });
+    report('load_more_failed', { level: 'warn', message: 'm', entries: ['etf: boom'] });
+    report('logo_failed', { level: 'warn', message: 'm', detail: 'GRV:AU', entries: [] });
+    expect(warn).toHaveBeenNthCalledWith(1, '%c[analytics]', expect.any(String), 'logo_failed', 'm', 'GRV:AU', ['GRV (https://example.test/a.png)']);
+    expect(warn).toHaveBeenNthCalledWith(2, '%c[analytics]', expect.any(String), 'load_more_failed', 'm', ['etf: boom']);
+    expect(warn).toHaveBeenNthCalledWith(3, '%c[analytics]', expect.any(String), 'logo_failed', 'm', 'GRV:AU');
+  });
+
   it('with the flag off drops product events but still prints problems', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});

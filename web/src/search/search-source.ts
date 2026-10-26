@@ -110,11 +110,11 @@ export function createSearchSource(
       const reported = new Set([...batch.documents.map((d) => d.symbol_openfigi), ...batch.missing].map((id) => id.toUpperCase()));
       const unreported = missingIds.filter((id) => !reported.has(id.toUpperCase()));
       if (unreported.length > 0) {
-        report('batch_incomplete', { level: 'error', message: 'Batch response omitted requested IDs', detail: unreported });
+        report('batch_incomplete', { level: 'error', message: 'Batch response omitted requested IDs', detail: unreported, entries: unreported });
         throw new Error(`Batch response omitted requested IDs: ${unreported.join(', ')}`);
       }
       for (const document of batch.documents) store.set(document.symbol_openfigi, document);
-      if (batch.missing.length > 0) report('batch_ids_missing', { level: 'warn', message: 'Instruments missing from the batch response, skipped:', detail: batch.missing });
+      if (batch.missing.length > 0) report('batch_ids_missing', { level: 'warn', message: 'Instruments missing from the batch response, skipped:', detail: batch.missing, entries: batch.missing });
     }
 
     return {

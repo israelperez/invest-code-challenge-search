@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { SearchIndexRequest, SearchIndexResponse } from '../api/types';
 import { config } from '../config';
 import { buildSearchRequest, type Filters, type SearchState } from './build-search-request';
+import { failureEntry } from './report';
 import type { SearchSource } from './search-source';
 import { useSearchBackend } from './search-source-context';
 
@@ -50,7 +51,7 @@ export function useSearchIndex(state: SearchState | null) {
     queryKey: searchKey(version.data?.indexed_at ?? null, request),
     queryFn: ({ signal }) =>
       source.loadFirst(state!, signal).catch((error: unknown) => {
-        if (!signal.aborted) report('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: error });
+        if (!signal.aborted) report('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: error, entries: [failureEntry(state!.term, error)] });
         throw error;
       }),
     enabled: request !== null && !version.isPending,
