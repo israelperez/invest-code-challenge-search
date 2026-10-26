@@ -110,16 +110,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 **Talking point:** the search service logs this itself, with the result count it computed, so the browser never reports numbers that could be wrong or faked. The same log feeds popular searches (terms with results) and insights (terms without). A real build would move the log into an analytics pipeline for daily product-gap reports ("123 users searched `VSG`, 0 results"), which is also where "did you mean" would come from.
 
-## 9. Zero results: too many filters [Extra]
-
-1. Search `bank`, tick **Flagship funds** and an issuer that has no flagship bank funds.
-   - "Try removing" chips appear, each with the count you'd get without that filter
-2. Click one.
-   - Results return
-
-**Proves:** a way out instead of a dead end, without mixing non-matching results into the list.
-
-## 10. Search insights panel [Extra]
+## 9. Search insights panel [Extra]
 
 1. Click the gear (top right).
    - Zero-result terms grouped by dedupe key, with total count and each variant's count
@@ -129,7 +120,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 **Talking point:** this is the view a product owner would get from a real analytics pipeline. Here it's `GET /insights/zero-results` over the API's search log, which is kept in a file: a fake history seeded on the first start plus every live search since. In production it sits behind admin auth.
 
-## 11. Demo settings [Extra]
+## 10. Demo settings [Extra]
 
 1. Gear → Settings. Set **Suggestion debounce** to 0 and **min characters** to 1, then type `vanguard` with Network open.
    - A request on nearly every keystroke
@@ -144,7 +135,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 **Talking point:** page size, minimum characters and debounce were judgement calls. Each lives in `config.ts` with a one-line description, and this panel shows the trade-off at other values.
 
-## 12. Accessibility
+## 11. Accessibility
 
 1. Keyboard only: Tab into the input, type, arrow through suggestions, Enter, Tab to filters, Space to toggle, Tab to Load more.
    - Focus ring visible throughout
@@ -154,14 +145,14 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 **Proves:** accessible search input **[AC]**.
 
-## 13. API down
+## 12. API down
 
 1. Stop the mock API, then search.
    - Error message with a Retry button, not a blank page
 2. Restart the API, click Retry.
    - Results load
 
-## 14. Responsive
+## 13. Responsive
 
 1. DevTools device toolbar, ~375px wide (mobile, 0–759px).
    - Single column; popular pills wrap; `[Filters]` and `[Sort]` sit above the results
@@ -172,7 +163,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 4. Reopen, tick again, press **Show X results**.
    - Drawer closes, results apply
 5. Tick a filter in the drawer, close it, then run a new search.
-   - Pending ticks are discarded; applied filters stay
+   - Pending ticks are discarded, and so are the applied filters; the sort stays
 6. Widen to ~900px (tablet, 760–1029px), then ~1300px (desktop, 1030px+).
    - Two columns: 260px filter rail and results; on desktop the content caps at 1030px and centres
    - Ticking a filter updates the results directly, with no button
@@ -271,7 +262,6 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | Issuer label = display only, from `issuerLabel(slug)` (casing override map, else title-case); the slug stays the value; colliding labels show the slug as a hint | Readable without changing which issuer a value refers to | Raw slugs (looks broken); logo-only (logos are shared across issuers, and filters need text for screen readers) |
 | "Portfolio eligible only" and "Units on issue (Equities only)" framing | The raw flags are confusing; the units range silently drops every ETF unless labelled | Exposing raw field names |
 | Drill-down: AND across sections, OR within one | Standard faceted search; matches the API | Appending relaxed "OR" results below |
-| Zero results with filters: "Try removing" chips with the count you'd get | A way out without mixing non-matching results into the list | Silent empty list |
 | Sort by: Recommended (default), Ticker A–Z / Z–A, Name A–Z / Z–A, Units on issue | "Recommended" reads right with or without a query, where "Best match" doesn't. Sort change resets to the first batch | Issuer sort (API sorts on slugs; the filter covers it), units low to high (no common need) |
 | Sort in the results header, separate from filters, applied immediately, computed server-side | Sort is how results are shown, filters are which results; sorting only loaded rows would give a wrong order | Sort inside the filter panel; sorting loaded rows in the browser |
 | Filters apply as you tick on tablet and desktop, and on a button in the mobile drawer. Counts update live through debounced counts-only requests ([ADR 0003](./adr/0003-refinements-apply-on-button.md), [ADR 0004](./adr/0004-live-filters-on-tablet-and-desktop.md)) | On a wide screen the results sit beside the rail, so each change shows straight away. On a phone the drawer covers the results, so the live total on the button shows what you'll get | A button everywhere (it got missed at the bottom of a tall rail); live updates behind the mobile drawer |

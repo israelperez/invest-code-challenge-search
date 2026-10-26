@@ -205,7 +205,7 @@ function LoadedResults({
       </VisuallyHidden>
       {count === 0 ? (
         <Text marginTop="4" color="fg.muted">
-          No instruments match that search. Try a different ticker or name.
+          No shares or ETFs match that search. Try a different ticker or name.
         </Text>
       ) : (
         <>

@@ -26,7 +26,7 @@ describe('console analytics', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { track, report } = createAnalytics({ enabled: false });
-    track('search_zero_results', { term: 'zzz', filtered: false });
+    track('search_zero_results', { term: 'zzz' });
     report('first_batch_failed', { level: 'error', message: 'failed' });
     expect(info).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledTimes(1);

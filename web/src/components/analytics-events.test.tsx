@@ -73,22 +73,12 @@ describe('Product events', () => {
     expect(analytics.track).toHaveBeenCalledWith('search_submitted', { term: 'b', source: 'recent' });
   });
 
-  it('a search with no results sends search_zero_results once, filtered false', async () => {
+  it('a search with no results sends search_zero_results once', async () => {
     const { analytics } = renderApp(api);
     await search('none');
     await act(() => new Promise((r) => setTimeout(r, 50)));
-    expect(analytics.track).toHaveBeenCalledWith('search_zero_results', { term: 'none', filtered: false });
+    expect(analytics.track).toHaveBeenCalledWith('search_zero_results', { term: 'none' });
     expect(names(analytics.track as never).filter((n) => n === 'search_zero_results')).toHaveLength(1);
-  });
-
-  it('a search with no results under applied filters sends filtered true', async () => {
-    wide();
-    const { analytics } = renderApp(api);
-    await search('a');
-    fireEvent.click(await screen.findByRole('checkbox', { name: /ETFs/ }));
-    await waitFor(() => expect(api.searchIndex.mock.calls.some(([b]) => b.include?.includes('documents') && b.kind)).toBe(true));
-    await search('none');
-    await waitFor(() => expect(analytics.track).toHaveBeenCalledWith('search_zero_results', { term: 'none', filtered: true }));
   });
 
   it('refinements (filter tick, sort change, load more) send none of the three events', async () => {
@@ -107,19 +97,17 @@ describe('Product events', () => {
   });
 
   describe('a refinement made before the submitted search responds', () => {
-    // 'b' with the ETFs filter is the submission; its response is held. Any other request for 'b' is a refinement and returns nothing.
+    // Plain 'b' is the submission; its response is held. Any other request for 'b' is a refinement and returns nothing.
     async function inFlight() {
       wide();
       const recent = freshRecentStore();
       const { analytics } = renderApp(api, { recent });
       await search('a');
-      fireEvent.click(await screen.findByRole('checkbox', { name: /ETFs/ }));
-      await screen.findByRole('list', { name: 'Applied filters' });
       const slow = deferred<void>();
       const real = api.searchIndex.getMockImplementation()!;
       api.searchIndex.mockImplementation(async (body, signal) => {
         if (body.search_text !== 'b' || !body.include?.includes('documents')) return real(body, signal);
-        if (body.kind?.join() === 'etf' && !body.order_by) {
+        if (!body.kind && !body.order_by) {
           await slow.promise;
           return real(body, signal);
         }
@@ -157,12 +145,6 @@ describe('Product events', () => {
     it('a sort change', async () => {
       const ctx = await inFlight();
       fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'symbol.asc' } });
-      await expectNothing(ctx);
-    });
-
-    it('a chip removal', async () => {
-      const ctx = await inFlight();
-      fireEvent.click(screen.getByRole('button', { name: 'Remove ETFs' }));
       await expectNothing(ctx);
     });
 

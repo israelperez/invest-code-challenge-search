@@ -240,19 +240,23 @@ describe('Filters', () => {
     }
   });
 
-  it('keeps applied filters on a new search', async () => {
+  it('a new search clears applied filters and keeps the sort', async () => {
     const api = await setup();
     await tickOption(/ETFs/);
     await click(applyButton()!);
     await tick(10);
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'symbol.desc' } });
+    await tick(10);
 
     vi.useRealTimers();
     await search('b');
-    await waitFor(() => expect(resultRequests(api).at(-1)![0]).toMatchObject({ search_text: 'b', kind: ['etf'] }));
+    await waitFor(() => expect(resultRequests(api).at(-1)![0]).toMatchObject({ search_text: 'b', order_by: 'symbol.desc' }));
 
+    expect(resultRequests(api).at(-1)![0]).not.toHaveProperty('kind');
+    expect(screen.queryByRole('list', { name: 'Applied filters' })).toBeNull();
+    expect(filtersTrigger()!.textContent).toBe('Filters');
     fireEvent.click(filtersTrigger()!);
-    expect((await screen.findByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(true);
-    expect(box(/Shares \(equities\)/).checked).toBe(false);
+    expect((await screen.findByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(false);
   });
 
   it('disables a zero-count option, and keeps it enabled once selected', async () => {
