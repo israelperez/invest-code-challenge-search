@@ -109,5 +109,5 @@ export async function search(term: string) {
   await screen.findByRole('heading', { level: 2 });
 }
 
-export const rows = () => Array.from(document.querySelectorAll('li:not([data-testid="skeleton-row"])'));
+export const rows = () => Array.from(document.querySelectorAll('ul:not([aria-label="Applied filters"]) > li:not([data-testid="skeleton-row"])'));
 export const skeletonRows = () => screen.queryAllByTestId('skeleton-row');

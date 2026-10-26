@@ -39,14 +39,19 @@ export function Results({
   query,
   onSortChange,
   filtersButton,
+  appliedFilters,
+  headingRef,
 }: {
   state: SearchState;
   query: UseQueryResult<SearchIndexResponse>;
   onSortChange: (orderBy: OrderBy | undefined) => void;
   // The mobile drawer trigger, beside the sort.
   filtersButton?: React.ReactNode;
+  // The applied-filter chips, between the header and the list.
+  appliedFilters?: React.ReactNode;
+  // Owned by App so the chips can move focus here when the last one goes.
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const count = query.data?.count ?? 0;
 
   // The header stays mounted through error, loading and loaded, so the select keeps focus and never moves.
@@ -80,6 +85,7 @@ export function Results({
           </NativeSelect.Root>
         </Field.Root>
       </Flex>
+      {appliedFilters}
       {query.isError ? (
         <Alert.Root status="error" marginTop="6">
           <Alert.Indicator />

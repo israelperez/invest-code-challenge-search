@@ -1,12 +1,14 @@
 import { Box, Container, Flex, Heading, useBreakpointValue } from '@chakra-ui/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { OrderBy } from './api/types';
+import { AppliedFilters } from './components/AppliedFilters';
 import { FilterDrawer } from './components/FilterDrawer';
 import { FilterRail } from './components/FilterRail';
 import { Results } from './components/Results';
 import { SearchForm } from './components/SearchForm';
 import { config } from './config';
 import type { Filters } from './search/build-search-request';
+import { appliedCount } from './search/filter-options';
 import { useFacetCounts, useSearchIndex } from './search/queries';
 
 export function App() {
@@ -29,6 +31,7 @@ export function App() {
     const timer = setTimeout(() => setApplied(pending), config.countsDebounceMs);
     return () => clearTimeout(timer);
   }, [live, pending]);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const state = term === null ? null : { term, filters: applied, order_by: orderBy };
   const query = useSearchIndex(state);
 
@@ -51,6 +54,20 @@ export function App() {
               state={state}
               query={query}
               onSortChange={setOrderBy}
+              headingRef={headingRef}
+              appliedFilters={
+                appliedCount(applied) > 0 && (
+                  <AppliedFilters
+                    term={state.term}
+                    applied={applied}
+                    onChange={(filters) => {
+                      setApplied(filters);
+                      setPending(filters);
+                    }}
+                    headingRef={headingRef}
+                  />
+                )
+              }
               filtersButton={
                 live ? undefined : (
                   <FilterDrawer

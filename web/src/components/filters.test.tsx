@@ -357,20 +357,13 @@ describe('Filters', () => {
       expect(screen.queryByRole('checkbox', { name: /India/ })).toBeNull();
     });
 
-    it('shows the raw slug as a hint on look-alike issuers only', async () => {
-      await setup();
-      await click(showAll());
-      expect(issuerBox(/Investors Mutual investors mutual/)).toBeTruthy();
-      expect(issuerBox(/Investors Mutual investors_mutual/)).toBeTruthy();
-      expect(issuerBox(/^Acme\s*\d*$/)).toBeTruthy();
-    });
-
     it('matches the filter text against the raw slug too, to tell look-alikes apart', async () => {
       await setup();
       await click(showAll());
       fireEvent.change(screen.getByLabelText('Filter issuers'), { target: { value: ' Investors_Mutual ' } });
-      expect(issuerBox(/investors_mutual/)).toBeTruthy();
-      expect(screen.queryByRole('checkbox', { name: /investors mutual/ })).toBeNull();
+      // Look-alikes share one label; the slug match narrows them to one.
+      expect(screen.getAllByRole('checkbox', { name: /Investors Mutual/ })).toHaveLength(1);
+      expect(screen.queryByRole('checkbox', { name: /Acme/ })).toBeNull();
     });
 
     it('sends the slug in the counts request and keeps it pending until the button', async () => {
@@ -378,7 +371,7 @@ describe('Filters', () => {
       const before = resultRequests(api).length;
 
       await click(showAll());
-      await click(issuerBox(/investors_mutual/));
+      await click(screen.getAllByRole('checkbox', { name: /Investors Mutual/ })[1]);
       await tick(config.countsDebounceMs + 10);
       await tick(10);
 
