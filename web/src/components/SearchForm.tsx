@@ -142,7 +142,6 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
                   // The combobox reports its value a tick late; a submit or the debounce must not wait for it.
                   onChange={(e) => change(e.target.value)}
                   onFocus={() => recent && setWantOpen(true)}
-                  onBlur={() => setWantOpen(false)}
                   onKeyDown={(e) => {
                     // A second Escape, with the list already closed, clears the input.
                     if (e.key === 'Escape' && !open) change('');
