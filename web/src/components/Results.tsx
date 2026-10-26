@@ -171,7 +171,7 @@ function LoadedResults({ state, data }: { state: SearchState; data: SearchIndexR
                 Load more
               </Button>
             ) : (
-              count > config.documentLimit && <Text color="fg.muted">You have reached the end of the results.</Text>
+              count > config.documentLimit + config.orphanSize && <Text color="fg.muted">You have reached the end of the results.</Text>
             )}
           </Box>
         </>

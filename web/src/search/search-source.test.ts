@@ -3,7 +3,7 @@ import type { InstrumentDocument, InstrumentsBatchResponse, SearchIndexResponse 
 import { createSearchSource, SnapshotStaleError } from './search-source';
 
 const state = { term: '', filters: {} };
-const options = { documentLimit: 2, idLimit: 3 };
+const options = { documentLimit: 2, orphanSize: 0, idLimit: 3 };
 const ids = ['A:AU', 'B:AU', 'C:AU', 'D:AU', 'E:AU'];
 const doc = (id: string) => ({ symbol: id, symbol_openfigi: id }) as InstrumentDocument;
 

@@ -4,7 +4,7 @@ import { createSearchSource, SnapshotStaleError } from '../../src/search/search-
 
 const baseUrl = inject('apiBaseUrl');
 const state = { term: '', filters: {} };
-const options = { documentLimit: 15, idLimit: 20 };
+const options = { documentLimit: 15, orphanSize: 3, idLimit: 20 };
 
 // Wraps the real client so calls can be counted and, when asked, sent with a stale snapshot.
 function spiedClient(staleSnapshot = false) {
@@ -60,6 +60,7 @@ describe('SearchSource load more against the real API', () => {
       consumed = batch.consumed;
     }
 
+    // 819 are left after the first 15; the last batch merges the 9-instrument tail instead of leaving it.
     expect(consumed).toBe(834);
     expect(new Set(seen).size).toBe(834);
     expect(seen).toEqual((await createApiClient(baseUrl).searchIndex({ include: ['ids'], id_limit: 1000 })).ids);
@@ -77,7 +78,8 @@ describe('SearchSource load more against the real API', () => {
 
     const once = await source.loadMore(state, 15);
     expect(api.instrumentsBatch).toHaveBeenCalledTimes(1);
-    expect(api.instrumentsBatch.mock.calls[0][0].ids).toEqual(once.documents.map((d) => d.symbol_openfigi));
+    // The first batch inlined 18 documents (15 + orphanSize), so 15 to 17 are already stored.
+    expect(api.instrumentsBatch.mock.calls[0][0].ids).toEqual(once.documents.map((d) => d.symbol_openfigi).slice(3));
 
     const again = await source.loadMore(state, 15);
     expect(api.instrumentsBatch).toHaveBeenCalledTimes(1);
@@ -85,11 +87,15 @@ describe('SearchSource load more against the real API', () => {
 
     // A different state sharing instruments with the store asks only for the ones it lacks.
     const reordered = { ...state, order_by: 'symbol.desc' as const };
-    await source.loadFirst(reordered);
+    const reorderedFirst = await source.loadFirst(reordered);
     api.instrumentsBatch.mockClear();
     const second = await source.loadMore(reordered, 15);
     const asked = api.instrumentsBatch.mock.calls.flatMap(([body]) => body.ids);
-    const stored = new Set([...once.documents, ...(await source.loadFirst(state)).documents!].map((d) => d.symbol_openfigi));
+    const stored = new Set([
+      ...once.documents.map((d) => d.symbol_openfigi),
+      ...(await source.loadFirst(state)).ids!.slice(0, 18),
+      ...reorderedFirst.ids!.slice(0, 18),
+    ]);
     expect(asked).toEqual(second.documents.map((d) => d.symbol_openfigi).filter((id) => !stored.has(id)));
   });
 

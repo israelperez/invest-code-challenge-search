@@ -17,7 +17,7 @@ export type SearchSource = ReturnType<typeof createSearchSource>;
 // Owns what has been fetched: the document store and, per search state, the ID windows loaded so far.
 export function createSearchSource(
   api: Pick<ApiClient, 'searchIndex' | 'instrumentsBatch'>,
-  { documentLimit, idLimit }: { documentLimit: number; idLimit: number },
+  { documentLimit, orphanSize, idLimit }: { documentLimit: number; orphanSize: number; idLimit: number },
 ) {
   const store = new Map<string, InstrumentDocument>();
   const index = new Map<string, IndexEntry>();
@@ -51,7 +51,7 @@ export function createSearchSource(
     const request = buildSearchRequest(state);
     const response = await call(() =>
       api.searchIndex(
-        { ...request, include: ['count', 'ids', 'documents'], document_limit: documentLimit, id_limit: idLimit },
+        { ...request, include: ['count', 'ids', 'documents'], document_limit: documentLimit + orphanSize, id_limit: idLimit },
         signal,
       ),
     );
@@ -62,8 +62,11 @@ export function createSearchSource(
       ids: response.ids ?? [],
       next_id_offset: response.next_id_offset ?? null,
     });
-    for (const document of response.documents ?? []) store.set(document.symbol_openfigi, document);
-    return response;
+    // The extra orphanSize documents are stored but shown only when they finish the results.
+    const documents = response.documents ?? [];
+    for (const document of documents) store.set(document.symbol_openfigi, document);
+    const showAll = (response.count ?? 0) <= documentLimit + orphanSize;
+    return { ...response, documents: showAll ? documents : documents.slice(0, documentLimit) };
   }
 
   // Loads the batch after the first `consumed` IDs. Resolves only once every document has arrived;
@@ -80,6 +83,8 @@ export function createSearchSource(
         ids: entry.ids,
         consumed,
         batchSize: documentLimit,
+        orphanSize,
+        count: entry.count,
         nextIdOffset: entry.next_id_offset,
         has: (id) => store.has(id),
       });

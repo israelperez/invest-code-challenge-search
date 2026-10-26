@@ -14,15 +14,21 @@ export function planHydration(input: {
   ids: string[];
   consumed: number;
   batchSize: number;
+  // Everything left is taken at once when it is at most batchSize + orphanSize.
+  orphanSize: number;
+  // Total matches, to know how much is left.
+  count: number;
   nextIdOffset: number | null;
   has: (id: string) => boolean;
 }): HydrationPlan {
-  const { ids, consumed, batchSize, nextIdOffset, has } = input;
-  const batchIds = ids.slice(consumed, consumed + batchSize);
+  const { ids, consumed, batchSize, orphanSize, count, nextIdOffset, has } = input;
+  const remaining = count - consumed;
+  const size = remaining <= batchSize + orphanSize ? remaining : batchSize;
+  const batchIds = ids.slice(consumed, consumed + size);
   return {
     batchIds,
     missingIds: batchIds.filter((id) => !has(id)),
-    needsNextWindow: batchIds.length < batchSize && nextIdOffset !== null,
+    needsNextWindow: batchIds.length < size && nextIdOffset !== null,
     exhausted: batchIds.length === 0 && nextIdOffset === null,
   };
 }

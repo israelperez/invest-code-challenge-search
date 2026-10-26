@@ -11,7 +11,7 @@ const SEARCH_KEY = 'search-index';
 const KNOWN_INDEXED_AT_KEY = ['known-indexed-at'] as const;
 
 const searchKey = (indexedAt: number | null, request: ReturnType<typeof buildSearchRequest> | null) =>
-  [SEARCH_KEY, indexedAt, request, config.documentLimit, config.idLimit] as const;
+  [SEARCH_KEY, indexedAt, request, config.documentLimit, config.orphanSize, config.idLimit] as const;
 
 // A changed indexed_at means the API restarted: drop cached searches and re-check the version.
 function observeIndexedAt(queryClient: QueryClient, source: SearchSource, indexedAt: number | undefined) {

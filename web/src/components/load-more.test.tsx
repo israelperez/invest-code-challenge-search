@@ -11,10 +11,14 @@ import { config } from '../config';
 import { createSearchSource } from '../search/search-source';
 import { SearchBackendContext } from '../search/search-source-context';
 
-// A fake API over two catalogues: "a" has 834 instruments, "b" has 20.
-const catalogues = {
-  a: Array.from({ length: 834 }, (_, i) => `A${String(i).padStart(4, '0')}:AU`),
-  b: Array.from({ length: 20 }, (_, i) => `B${String(i).padStart(4, '0')}:AU`),
+// A fake API over catalogues named by the search text: "a" has 834 instruments, "b" 20, "c" 18 and "d" 19.
+const catalogue = (prefix: string, length: number) =>
+  Array.from({ length }, (_, i) => `${prefix}${String(i).padStart(4, '0')}:AU`);
+const catalogues: Record<string, string[]> = {
+  a: catalogue('A', 834),
+  b: catalogue('B', 20),
+  c: catalogue('C', 18),
+  d: catalogue('D', 19),
 };
 let indexedAt = 1;
 const doc = (id: string): InstrumentDocument => ({
@@ -43,7 +47,7 @@ function fakeApi() {
   return {
     version: vi.fn(async () => ({ indexed_at: indexedAt })),
     searchIndex: vi.fn(async (body: SearchIndexRequest) => {
-      const all = body.search_text === 'b' ? catalogues.b : catalogues.a;
+      const all = catalogues[body.search_text ?? 'a'];
       const window = all.slice(body.id_offset ?? 0, (body.id_offset ?? 0) + (body.id_limit ?? 1000));
       const next = (body.id_offset ?? 0) + window.length;
       return {
@@ -64,7 +68,7 @@ function fakeApi() {
 type FakeApi = ReturnType<typeof fakeApi>;
 
 function renderApp(api: FakeApi) {
-  const source = createSearchSource(api, { documentLimit: config.documentLimit, idLimit: config.idLimit });
+  const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ChakraProvider value={defaultSystem}>
@@ -116,7 +120,8 @@ describe('Load more', () => {
     expect(skeletonRows()).toHaveLength(config.skeletonRows);
     expect(rows()).toHaveLength(15);
 
-    const ids = catalogues.a.slice(15, 30);
+    // 15 to 17 came with the first batch (document_limit 15 + orphanSize), so only the rest is requested.
+    const ids = catalogues.a.slice(18, 30);
     await act(async () => batch.resolve({ documents: ids.map(doc), missing: [], indexed_at: indexedAt }));
 
     expect(skeletonRows()).toHaveLength(0);
@@ -133,7 +138,7 @@ describe('Load more', () => {
     renderApp(api);
     await search('a');
 
-    const ids = catalogues.a.slice(15, 30);
+    const ids = catalogues.a.slice(18, 30);
     const missing = [ids[3], ids[9]];
     api.instrumentsBatch.mockResolvedValueOnce({
       documents: ids.filter((id) => !missing.includes(id)).map(doc),
@@ -197,6 +202,32 @@ describe('Load more', () => {
     expect(status().textContent).toBe('');
   });
 
+  it('shows all 18 results at once, with no Load more and no end message', async () => {
+    renderApp(fakeApi());
+    await search('c');
+
+    expect(rows()).toHaveLength(18);
+    expect(loadMoreButton()).toBeNull();
+    expect(screen.queryByText(/end of the results/i)).toBeNull();
+  });
+
+  it('shows 15 of 19, then the last 4 on Load more, then the end message', async () => {
+    const api = fakeApi();
+    renderApp(api);
+    await search('d');
+    expect(rows()).toHaveLength(15);
+    expect(screen.queryByText(/end of the results/i)).toBeNull();
+
+    await clickLoadMore();
+
+    expect(rows()).toHaveLength(19);
+    expect(status().textContent).toBe('4 more loaded, showing 19 of 19');
+    // Documents 15 to 17 were inlined with the first batch, so only the 19th is requested.
+    expect(api.instrumentsBatch.mock.calls[0][0].ids).toEqual(catalogues.d.slice(18));
+    expect(loadMoreButton()).toBeNull();
+    expect(screen.getByText(/end of the results/i)).toBeTruthy();
+  });
+
   it('replaces the button with an end-of-results message after the last batch', async () => {
     renderApp(fakeApi());
     await search('b');
@@ -248,7 +279,7 @@ describe('Load more', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     renderApp(api);
     await search('a');
-    const ids = catalogues.a.slice(15, 30);
+    const ids = catalogues.a.slice(18, 30);
     api.instrumentsBatch.mockResolvedValueOnce({ documents: ids.slice(1).map(doc), missing: [], indexed_at: 1 });
     await clickLoadMore();
 
