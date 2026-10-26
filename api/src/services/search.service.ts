@@ -26,22 +26,27 @@ export class SearchService {
    * Searches instruments in the same order of steps as the real Search API.
    */
   async search(query: InstrumentSearchQuery): Promise<SearchResults> {
-    const [documents, indexed_at] = await Promise.all([
-      this.repository.getAll(),
+    const [matches, indexed_at] = await Promise.all([
+      this.searchAll(query),
       this.repository.getIndexedAt(),
     ]);
 
-    let results = this.applyDefaultOrder(documents);
+    // Count represents all matching results before pagination.
+    const count = matches.length;
+    const results = this.applyPagination(matches, query.from, query.size);
+
+    return { results, count, indexed_at };
+  }
+
+  /**
+   * Returns every instrument matching the query in result order, ignoring from and size.
+   */
+  async searchAll(query: InstrumentSearchQuery): Promise<InstrumentDocument[]> {
+    let results = this.applyDefaultOrder(await this.repository.getAll());
     results = this.applyFilters(results, query);
     results = this.applyTextSearch(results, query.search_text);
 
-    // Count represents all matching results before pagination.
-    const count = results.length;
-
-    results = this.applyOrderBy(results, query.order_by);
-    results = this.applyPagination(results, query.from, query.size);
-
-    return { results, count, indexed_at };
+    return this.applyOrderBy(results, query.order_by);
   }
 
   /**
