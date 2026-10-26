@@ -1,6 +1,7 @@
 import { Alert, Box, Flex, Heading, Text } from '@chakra-ui/react';
 import { useId, useSyncExternalStore } from 'react';
 import { config } from '../config';
+import { DISTINCT_CAP } from './problem-counter';
 import type { ProblemEvent } from '../search/report';
 import { useSearchBackend } from '../search/search-source-context';
 
@@ -59,7 +60,7 @@ export function DataProblems() {
                         {entry}
                       </Box>
                     ))}
-                    {distinct > entries.length && <Box as="li">and {distinct - entries.length} more</Box>}
+                    {distinct > entries.length && <Box as="li">and {distinct - entries.length}{distinct >= DISTINCT_CAP && '+'} more</Box>}
                   </Box>
                 </details>
               )}

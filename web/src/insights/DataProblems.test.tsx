@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { problemsWrapper } from '../../tests/component/app-harness';
 import { config } from '../config';
 import { DataProblems } from './DataProblems';
-import { createProblemCounter } from './problem-counter';
+import { createProblemCounter, DISTINCT_CAP } from './problem-counter';
 
 const settings = config as { dataProblemsEnabled: boolean };
 const original = settings.dataProblemsEnabled;
@@ -82,6 +82,13 @@ describe('Data problems section', () => {
     const row = rowOf('Instruments with no display name');
     expect(within(row).getAllByRole('listitem').filter((li) => /^X\d+:AU$/.test(li.textContent!))).toHaveLength(10);
     expect(within(row).getByText('and 3 more')).toBeTruthy();
+  });
+
+  it('words the remainder as a lower bound once the distinct cap is reached', () => {
+    const problems = createProblemCounter();
+    problems.record('no_display_name', Array.from({ length: DISTINCT_CAP + 20 }, (_, i) => `X${i}:AU`));
+    render(<DataProblems />, { wrapper: problemsWrapper({ problems }) });
+    expect(within(rowOf('Instruments with no display name')).getByText(`and ${DISTINCT_CAP - 10}+ more`)).toBeTruthy();
   });
 
   it('is absent when the dataProblemsEnabled flag is off', () => {

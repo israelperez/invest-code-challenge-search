@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAnalytics } from '../analytics/analytics';
 import { consoleReport } from '../search/report';
-import { countProblems, createProblemCounter } from './problem-counter';
+import { countProblems, createProblemCounter, DISTINCT_CAP } from './problem-counter';
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -28,6 +28,20 @@ describe('problem counter', () => {
     counter.record('logo_failed', ['X0']);
     const { count, entries, distinct } = counter.getSnapshot().logo_failed!;
     expect([count, entries, distinct]).toEqual([13, Array.from({ length: 10 }, (_, i) => `X${i}`), 12]);
+  });
+
+  it('stops tracking distinct entries at the cap while the count keeps rising', () => {
+    const counter = createProblemCounter();
+    for (let i = 0; i < DISTINCT_CAP + 5; i++) counter.record('logo_failed', [`X${i}`]);
+    const { count, distinct, entries } = counter.getSnapshot().logo_failed!;
+    expect([count, distinct, entries.length]).toEqual([DISTINCT_CAP + 5, DISTINCT_CAP, 10]);
+  });
+
+  it('stops accepting new keys past the cap', () => {
+    const counter = createProblemCounter();
+    for (let i = 0; i < DISTINCT_CAP; i++) expect(counter.firstTime('logo_failed', `X${i}`)).toBe(true);
+    expect(counter.firstTime('logo_failed', 'new')).toBe(false);
+    expect(counter.firstTime('no_display_name', 'new')).toBe(true);
   });
 
   it('keeps no entries for an event reported without any', () => {
