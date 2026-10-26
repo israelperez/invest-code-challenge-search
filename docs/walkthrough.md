@@ -55,11 +55,12 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
 
 1. Search `bank`, then `gold`, then `BANK` again.
    - Recent shows `BANK` at the top, once (case-insensitive dedupe, re-search moves to top)
-2. Remove one with ×.
+2. Search `qqqqq`, which finds nothing.
+   - It isn't added to Recent
 3. Type `ba`.
-   - Matching recent searches lead the list
+   - Only recent searches starting with `ba` show, and at `ban` suggestions replace them
 
-**Proves:** quick repeat searches; saved on submit only, never per keystroke.
+**Proves:** quick repeat searches; saved only once a search returns results, never per keystroke.
 
 ## 5. Results and pagination
 
@@ -247,7 +248,7 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | Popular terms deduped on an order-insensitive word set, ignoring `and`, `the`, `of`, `for`, `asx`; `OR` and `etf` kept | `VGS vanguard` and `vanguard VGS` are the same search. `OR` is an API operator, `etf` changes results | Exact-string dedupe |
 | Zero-result terms kept in the log, excluded from pills | Zero results is information for Betashares (a product gap), but a dead end for a user | Showing them as pills |
 | Popular fetched once on page load | It's an aggregate that changes slowly; polling adds nothing | Live refresh |
-| Recent searches: saved when the request fires, last 5, case-insensitive dedupe, removable, localStorage, updated in memory | The user did search for it, even if it failed or found nothing, and retrying from Recent helps after an error | Saving keystrokes; saving only successful searches |
+| Recent searches: saved once the search returns results, last 5, case-insensitive dedupe, not removable, localStorage, updated in memory | A search with no results is a dead end, so the list never offers one. Only searches that found something are kept and the list caps at 5, so old entries drop off by themselves. A × on each entry would need its own popup outside the combobox to stay accessible, which is more work than this needs | Saving keystrokes; saving when the request fires; a × to remove each entry |
 
 ### Analytics and insights
 
