@@ -211,7 +211,12 @@ describe('Load more', () => {
   it('logs when the first batch fails', async () => {
     const api = fakeApi();
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    api.searchIndex.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    // Only the results request fails; the filter counts request runs alongside it.
+    const base = api.searchIndex.getMockImplementation()!;
+    api.searchIndex.mockImplementation(async (body, signal) => {
+      if (body.include?.includes('documents')) throw new ApiError(500, 'boom');
+      return base(body, signal);
+    });
     renderApp(api);
     fireEvent.change(screen.getByLabelText('Search stocks and ETFs'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
