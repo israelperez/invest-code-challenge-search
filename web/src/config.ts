@@ -35,6 +35,8 @@ export const config = {
   recentSearches: true,
   // Recent searches kept, newest first.
   recentSearchLimit: 5,
+  // Feature flag: the Insights tab in the gear panel (development only; needs the API's ENABLE_INSIGHTS).
+  insightsEnabled: true,
   // Feature flag: send product events and problem reports to analytics (the console, for now); off prints problems as plain console output.
   analytics: true,
   // Betashares ETFs offered as pills when there are no popular searches to show.

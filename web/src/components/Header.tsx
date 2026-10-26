@@ -1,4 +1,6 @@
-import { CloseButton, Drawer, Flex, IconButton, Image, Portal, Text } from '@chakra-ui/react';
+import { CloseButton, Drawer, Flex, IconButton, Image, Portal, Tabs, Text } from '@chakra-ui/react';
+import { config } from '../config';
+import { InsightsTab } from '../insights/InsightsTab';
 import gearIcon from '../assets/gear-solid-full.svg';
 import logo from '../assets/betashares-logo.svg';
 
@@ -23,7 +25,17 @@ export function Header() {
               <Drawer.Header>
                 <Drawer.Title>Settings</Drawer.Title>
               </Drawer.Header>
-              <Drawer.Body />
+              <Drawer.Body>
+                {/* #19 adds the Settings tab here. */}
+                <Tabs.Root defaultValue="insights">
+                  <Tabs.List>{config.insightsEnabled && <Tabs.Trigger value="insights">Insights</Tabs.Trigger>}</Tabs.List>
+                  {config.insightsEnabled && (
+                    <Tabs.Content value="insights">
+                      <InsightsTab />
+                    </Tabs.Content>
+                  )}
+                </Tabs.Root>
+              </Drawer.Body>
               <Drawer.CloseTrigger asChild>
                 <CloseButton aria-label="Close settings" />
               </Drawer.CloseTrigger>

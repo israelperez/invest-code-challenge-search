@@ -59,6 +59,12 @@ export type PopularTerm = { label: string; key: string; clients: number };
 
 export type PopularResponse = { terms: PopularTerm[]; includes_seed_data: true };
 
+export type ZeroResultSpelling = { text: string; total: number };
+
+export type ZeroResultGroup = { key: string; clients: number; total: number; spellings: ZeroResultSpelling[] };
+
+export type ZeroResultsResponse = { groups: ZeroResultGroup[]; includes_seed_data: true };
+
 export type SuggestInstrumentsRequest = { search_text: string; size: number };
 
 export type SuggestedInstrument = Pick<InstrumentDocument, 'symbol' | 'symbol_openfigi' | 'display_name' | 'logo'>;
