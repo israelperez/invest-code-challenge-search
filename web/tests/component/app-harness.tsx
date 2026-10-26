@@ -12,6 +12,7 @@ import type {
   SuggestInstrumentsRequest,
 } from '../../src/api/types';
 import { config } from '../../src/config';
+import { createSearchLogger } from '../../src/search/search-logger';
 import { createSearchSource } from '../../src/search/search-source';
 import { createSuggestionSource } from '../../src/search/suggestion-source';
 import { SearchBackendContext } from '../../src/search/search-source-context';
@@ -71,6 +72,7 @@ export function deferred<T>() {
 
 export function fakeApi() {
   return {
+    logSearch: vi.fn(async (_term: string, _submissionId: string, _clientId: string) => undefined),
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),
     searchIndex: vi.fn(async (body: SearchIndexRequest, _signal?: AbortSignal) => {
       const base = catalogues[body.search_text ?? 'a'] ?? catalogues.b;
@@ -118,7 +120,7 @@ export function renderApp(api: FakeApi) {
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }) }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), logSearch: createSearchLogger(api, () => 'test-client') }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>

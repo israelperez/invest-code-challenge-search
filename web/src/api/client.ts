@@ -27,6 +27,8 @@ export function createApiClient(baseUrl: string) {
       const body: unknown = await response.json().catch(() => undefined);
       throw new ApiError(response.status, `${init?.method ?? 'GET'} ${path} failed with ${response.status}`, body);
     }
+    // 202 Accepted has no body.
+    if (response.status === 202) return undefined as T;
     return (await response.json()) as T;
   }
 
@@ -59,6 +61,13 @@ export function createApiClient(baseUrl: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         signal,
+      }),
+    // Fire-and-forget log of an explicit search; the server answers 202 with no body.
+    logSearch: (term: string, submissionId: string, clientId: string) =>
+      request<void>('/searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId },
+        body: JSON.stringify({ term, submission_id: submissionId }),
       }),
     version: (signal?: AbortSignal) => request<VersionResponse>('/version', { signal }),
   };
