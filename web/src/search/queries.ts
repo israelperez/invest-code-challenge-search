@@ -1,8 +1,8 @@
-import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import type { SearchIndexResponse } from '../api/types';
+import { keepPreviousData, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import type { SearchIndexRequest, SearchIndexResponse } from '../api/types';
 import { config } from '../config';
-import { buildSearchRequest, type SearchState } from './build-search-request';
+import { buildSearchRequest, type Filters, type SearchState } from './build-search-request';
 import type { SearchSource } from './search-source';
 import { useSearchBackend } from './search-source-context';
 
@@ -76,5 +76,44 @@ export function useRestartSearch(state: SearchState) {
     queryClient.setQueryData(searchKey(first.indexed_at, request), first);
     queryClient.setQueryData(searchKey(version.data?.indexed_at ?? null, request), first);
     void queryClient.invalidateQueries({ queryKey: VERSION_KEY });
+  };
+}
+
+// The first value is immediate; only changes wait.
+function useDebounced<T>(value: T, ms: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(timer);
+  }, [value, ms]);
+  return debounced;
+}
+
+// Counts and facets for the pending filters. order_by is left out of the key, so a sort never refetches them.
+export function useFacetCounts(term: string, pending: Filters) {
+  const { api } = useSearchBackend();
+  const version = useVersion();
+  const current = JSON.stringify(buildSearchRequest({ term, filters: pending }));
+  const settled = useDebounced(current, config.countsDebounceMs);
+  const request = useMemo(() => JSON.parse(settled) as SearchIndexRequest, [settled]);
+  const query = useQuery({
+    queryKey: ['facet-counts', version.data?.indexed_at ?? null, request],
+    queryFn: ({ signal }) => api.searchIndex({ ...request, include: ['count', 'facets'] }, signal),
+    enabled: !version.isPending,
+    staleTime: config.searchStaleTimeMs,
+    // Kept for the rail's structure (bucket edges) only; its numbers are never shown.
+    placeholderData: keepPreviousData,
+  });
+  const loading = !query.isError && (settled !== current || query.isPending || query.isPlaceholderData);
+  // Only counts for the current state are shown or used to disable options.
+  const ready = !loading && !query.isError;
+  return {
+    facets: ready ? query.data?.facets : undefined,
+    // Possibly from an earlier state: use for which rows exist, never for counts.
+    known: query.data?.facets,
+    count: ready ? query.data?.count : undefined,
+    loading,
+    error: query.isError,
+    retry: () => void query.refetch(),
   };
 }

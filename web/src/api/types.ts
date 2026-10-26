@@ -34,9 +34,12 @@ export type InstrumentDocument = {
   units_circulating: string | null;
 };
 
+export type FacetEntry = { value: string; count: number };
+
 export type SearchIndexResponse = {
   indexed_at: number;
   count?: number;
+  facets?: Record<string, FacetEntry[]>;
   ids?: string[];
   next_id_offset?: number | null;
   documents?: InstrumentDocument[];

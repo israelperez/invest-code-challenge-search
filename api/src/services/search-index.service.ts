@@ -7,6 +7,7 @@ import {
   SearchIndexResponse,
 } from '../models/search-index.model';
 import { InstrumentsRepository } from '../repositories/instruments-json.repository';
+import { countFacets } from './index-facets';
 import { SearchService } from './search.service';
 
 export class SearchIndexService {
@@ -29,18 +30,28 @@ export class SearchIndexService {
    * Runs one search pass and returns the parts named by include.
    */
   async search(request: SearchIndexRequest): Promise<SearchIndexResponse> {
-    const [matches, indexed_at] = await Promise.all([
+    const include = new Set(request.include ?? INCLUDE_VALUES);
+    const [matches, indexed_at, all] = await Promise.all([
       this.searchService.searchAll(request),
       this.repository.getIndexedAt(),
+      // Facet options come from every document, not only the matches.
+      include.has('facets') ? this.repository.getAll() : [],
     ]);
-    const include = new Set(request.include ?? INCLUDE_VALUES);
     const response: SearchIndexResponse = { indexed_at };
 
     if (include.has('count')) {
       response.count = matches.length;
     }
 
-    // "facets" is accepted but not returned yet.
+    if (include.has('facets')) {
+      response.facets = await countFacets(
+        this.searchService,
+        request,
+        matches,
+        all,
+      );
+    }
+
     if (include.has('ids')) {
       const offset = request.id_offset ?? 0;
       const window = matches.slice(
