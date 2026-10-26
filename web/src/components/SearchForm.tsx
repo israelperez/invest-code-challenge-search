@@ -21,7 +21,7 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
               ref={inputRef}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="e.g. A200"
+              placeholder="e.g. A200 or Australia 200"
               fontSize="md"
               paddingEnd="10"
               maxLength={100}
