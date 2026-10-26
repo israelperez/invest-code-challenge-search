@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import type { Filters } from '../search/build-search-request';
 import { appliedChips } from '../search/filter-options';
 import { useFacetCounts } from '../search/queries';
+import { RawHint } from '../settings/RawHint';
 
 // Below the tablet breakpoint it stays one line that scrolls sideways; from there up it wraps. Removing a chip or clearing applies at once.
 export function AppliedFilters({
@@ -44,7 +45,10 @@ export function AppliedFilters({
       {chips.map((chip, i) => (
         <Box as="li" key={chip.id} flexShrink={0}>
           <Tag.Root size="lg" whiteSpace="nowrap">
-            <Tag.Label>{chip.label}</Tag.Label>
+            <Tag.Label>
+              {chip.label}
+              {chip.raw && <RawHint value={chip.raw} />}
+            </Tag.Label>
             <Tag.EndElement>
               <Tag.CloseTrigger
                 aria-label={`Remove ${chip.label}`}

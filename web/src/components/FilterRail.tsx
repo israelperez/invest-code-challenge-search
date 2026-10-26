@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { buildSearchRequest, type Filters } from '../search/build-search-request';
 import { filterSections, type FilterOption, type FilterSection } from '../search/filter-options';
 import type { useFacetCounts } from '../search/queries';
+import { RawHint } from '../settings/RawHint';
 
 // Same height as a label line, so a row never changes height between loading and loaded.
 const ROW_HEIGHT = '6';
@@ -24,11 +25,15 @@ const Count = ({ option, loading }: { option: FilterOption; loading: boolean }) 
   </Box>
 );
 
-const CheckboxRow = ({ option: o, loading, onChange }: { option: FilterOption; loading: boolean; onChange: (next: Filters) => void }) => (
+// `raw` is the API value to show under Show raw data; the flag checkboxes have none.
+const CheckboxRow = ({ option: o, raw, loading, onChange }: { option: FilterOption; raw?: boolean; loading: boolean; onChange: (next: Filters) => void }) => (
   <Checkbox.Root checked={o.selected} disabled={o.disabled} onCheckedChange={() => onChange(o.next)} width="full">
     <Checkbox.HiddenInput />
     <Checkbox.Control />
-    <Checkbox.Label flex="1">{o.label}</Checkbox.Label>
+    <Checkbox.Label flex="1">
+      {o.label}
+      {raw && <RawHint value={o.id} />}
+    </Checkbox.Label>
     <Count option={o} loading={loading} />
   </Checkbox.Root>
 );
@@ -53,7 +58,7 @@ function IssuerSection({ section, loading, onChange }: { section: FilterSection;
             o.placeholder ? (
               <Skeleton key={o.id} height={ROW_HEIGHT} aria-hidden />
             ) : (
-              <CheckboxRow key={o.id} option={o} loading={loading} onChange={onChange} />
+              <CheckboxRow key={o.id} option={o} raw loading={loading} onChange={onChange} />
             ),
           )}
           {expanded && shown.length === 0 && <Text fontSize="sm" color="fg.muted">No issuers match</Text>}
@@ -101,7 +106,10 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
                   {o.placeholder ? (
                     <Skeleton height="full" flex="1" />
                   ) : (
-                    <RadioGroup.ItemText flex="1">{o.label}</RadioGroup.ItemText>
+                    <RadioGroup.ItemText flex="1">
+                      {o.label}
+                      {o.id !== 'any' && <RawHint value={o.id} />}
+                    </RadioGroup.ItemText>
                   )}
                   {o.id !== 'any' && <Count option={o} loading={loading || !!o.placeholder} />}
                 </RadioGroup.Item>
@@ -109,7 +117,7 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
             </Flex>
           </RadioGroup.Root>
         ) : (
-          section.options.map((o) => <CheckboxRow key={o.id} option={o} loading={loading} onChange={onChange} />)
+          section.options.map((o) => <CheckboxRow key={o.id} option={o} raw={section.id === 'kind'} loading={loading} onChange={onChange} />)
         )}
       </Fieldset.Content>
     </Fieldset.Root>

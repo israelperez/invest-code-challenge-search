@@ -4,6 +4,7 @@ import type { InstrumentDocument } from '../api/types';
 import defaultLogo from '../assets/default-logo.svg';
 import { issuerLabel } from '../format/issuer-label';
 import { kindLabel } from '../format/kind-label';
+import { RawHint } from '../settings/RawHint';
 
 const unitsFormat = new Intl.NumberFormat('en-AU');
 
@@ -51,9 +52,27 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
           <Text>{instrument.display_name}</Text>
         </Flex>
         <Text color="fg.muted" fontSize="sm">
-          {[kindLabel(instrument.kind), issuer, units && `${unitsFormat.format(Number(units))} units on issue`]
+          {[
+            <>
+              {kindLabel(instrument.kind)}
+              <RawHint value={instrument.kind} />
+            </>,
+            issuer && (
+              <>
+                {issuer}
+                <RawHint value={instrument.issuer!} />
+              </>
+            ),
+            units && (
+              <>
+                {unitsFormat.format(Number(units))} units on issue
+                <RawHint value={units} />
+              </>
+            ),
+          ]
             .filter(Boolean)
-            .join(' · ')}
+            .flatMap((part, i) => (i ? [' · ', part] : [part]))}
+          <RawHint value={instrument.symbol_openfigi} />
         </Text>
       </Box>
       {/* On mobile the badges take their own line, indented past the logo (boxSize 10 plus the 4 gap) to line up with the text. */}
