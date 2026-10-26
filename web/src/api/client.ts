@@ -1,8 +1,11 @@
 import type {
+  FacetEntry,
   InstrumentsBatchRequest,
   InstrumentsBatchResponse,
   SearchIndexRequest,
   SearchIndexResponse,
+  SuggestInstrumentsRequest,
+  SuggestInstrumentsResponse,
   VersionResponse,
 } from './types';
 
@@ -37,6 +40,21 @@ export function createApiClient(baseUrl: string) {
       }),
     instrumentsBatch: (body: InstrumentsBatchRequest, signal?: AbortSignal) =>
       request<InstrumentsBatchResponse>('/instruments/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      }),
+    facetIssuer: (signal?: AbortSignal) =>
+      request<FacetEntry[]>('/facets/issuer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+        signal,
+      }),
+    // Legacy /search: size travels in the body, the fields to return in the query.
+    suggestInstruments: (body: SuggestInstrumentsRequest, signal?: AbortSignal) =>
+      request<SuggestInstrumentsResponse>('/search?fields=symbol,symbol_openfigi,display_name,logo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

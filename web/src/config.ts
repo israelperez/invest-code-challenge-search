@@ -17,4 +17,10 @@ export const config = {
   skeletonRows: 5,
   // Issuers shown before "Show all"; the rest are one click away.
   featuredIssuers: 8,
+  // Characters typed before suggestions are fetched.
+  suggestionMinChars: 3,
+  // How long typing settles before the suggestion request goes out.
+  suggestionDebounceMs: 200,
+  // Searches (issuer terms) shown in the suggestion list.
+  suggestionTermLimit: 5,
 } as const;

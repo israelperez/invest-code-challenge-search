@@ -24,6 +24,11 @@ describe('config', () => {
     expect(config.skeletonRows).toBeGreaterThan(0);
   });
 
+  it('suggests from 3 characters after a 200ms pause', () => {
+    expect(config.suggestionMinChars).toBe(3);
+    expect(config.suggestionDebounceMs).toBe(200);
+  });
+
   it('has only sane values', () => {
     for (const value of Object.values(config)) {
       expect(value).not.toBeUndefined();
