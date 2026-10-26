@@ -1,4 +1,5 @@
 import type { FacetEntry } from '../api/types';
+import { issuerLabel } from '../format/issuer-label';
 import type { Filters } from './build-search-request';
 
 export type Facets = Record<string, FacetEntry[]>;
@@ -16,10 +17,20 @@ export type FilterOption = {
   next: Filters;
 };
 
-export type FilterSection = { id: string; legend: string; control: 'checkbox' | 'radio'; options: FilterOption[] };
+export type FilterSection = {
+  id: string;
+  legend: string;
+  control: 'checkbox' | 'radio';
+  options: FilterOption[];
+  // Option ids to show while the section is collapsed; every option otherwise.
+  featured?: string[];
+};
 
 // Matches the API's configured units_circulating buckets; the real rows replace these once the counts arrive.
 export const UNIT_BUCKET_ROWS = 5;
+
+// How many issuers show before "Show all".
+export const FEATURED_ISSUERS = 8;
 
 const KIND_LABELS: Record<string, string> = { etf: 'ETFs', equity: 'Stocks' };
 
@@ -61,9 +72,9 @@ export function bucketLabel(value: string, index: number, total: number): string
   return aUnit === bUnit ? `${a} to ${b} ${bUnit}` : `${a} ${aUnit} to ${b} ${bUnit}`;
 }
 
-// How many selections are applied: each kind, each flag and the units bucket.
+// How many selections are applied: each kind, each issuer, each flag and the units bucket.
 export const appliedCount = (filters: Filters) =>
-  (filters.kind?.length ?? 0) + FLAGS.filter(({ key, value }) => filters[key] === value).length + (filters.units_circulating ? 1 : 0);
+  (filters.kind?.length ?? 0) + (filters.issuer?.length ?? 0) + FLAGS.filter(({ key, value }) => filters[key] === value).length + (filters.units_circulating ? 1 : 0);
 
 export const applyLabel = (count: number) =>
   count === 0 ? 'No matching results' : `Show ${count.toLocaleString('en-AU')} ${count === 1 ? 'result' : 'results'}`;
@@ -82,6 +93,24 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
       return option(kind, KIND_LABELS[kind] ?? kind, countOf(facets, 'kind', kind), selected, kindList.length ? { ...filters, kind: kindList } : without(filters, 'kind'));
     }),
   };
+
+  const byLabel = (a: string, b: string) => issuerLabel(a).localeCompare(issuerLabel(b)) || a.localeCompare(b);
+  const issuerSlugs = (known?.issuer ?? []).map((e) => e.value);
+  const chosenIssuers = filters.issuer ?? [];
+  const issuerOptions = issuerSlugs.sort(byLabel).map((slug) => {
+    const selected = chosenIssuers.includes(slug);
+    const list = selected ? chosenIssuers.filter((s) => s !== slug) : [...chosenIssuers, slug];
+    return option(slug, issuerLabel(slug), countOf(facets, 'issuer', slug), selected, list.length ? { ...filters, issuer: list } : without(filters, 'issuer'));
+  });
+  const topIssuers = [...(known?.issuer ?? [])]
+    .sort((a, b) => b.count - a.count || byLabel(a.value, b.value))
+    .slice(0, FEATURED_ISSUERS)
+    .map((e) => e.value);
+  const featured = [...topIssuers, ...chosenIssuers.filter((slug) => issuerSlugs.includes(slug) && !topIssuers.includes(slug))];
+  const issuerStandIns = Array.from({ length: FEATURED_ISSUERS }, (_, i) => ({ ...option(`placeholder-${i}`, '', undefined, false, filters), placeholder: true, disabled: true }));
+  const issuerSection: FilterSection = issuerSlugs.length
+    ? { id: 'issuer', legend: 'Issuer', control: 'checkbox', options: issuerOptions, featured }
+    : { id: 'issuer', legend: 'Issuer', control: 'checkbox', options: issuerStandIns, featured: issuerStandIns.map((o) => o.id) };
 
   const flagSections = FLAGS.map(({ key, label, value }): FilterSection => {
     const selected = filters[key] === value;
@@ -113,5 +142,5 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
     ],
   };
 
-  return [kindSection, ...flagSections, unitsSection];
+  return [kindSection, issuerSection, ...flagSections, unitsSection];
 }

@@ -35,10 +35,13 @@ export const doc = (id: string): InstrumentDocument => ({
   units_circulating: null,
 });
 
+// Eleven issuers, so Show all has something to reveal; the last two are look-alikes the API keeps apart.
+const ISSUERS = ['acme', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'investors mutual', 'investors_mutual'];
+
 // Every option of every facet key, each with the same count.
 export const fakeFacets = (count: number): Record<string, FacetEntry[]> => ({
   kind: [{ value: 'equity', count }, { value: 'etf', count }],
-  issuer: [{ value: 'acme', count }],
+  issuer: ISSUERS.map((value) => ({ value, count })),
   is_betashares: [{ value: 'true', count }, { value: 'false', count }],
   is_flagship_fund: [{ value: 'true', count }, { value: 'false', count }],
   is_auto_invest_included: [{ value: 'true', count }, { value: 'false', count }],
