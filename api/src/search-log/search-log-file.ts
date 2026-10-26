@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 import { DEFAULT_SEARCH_LOG_CONFIG } from './search-log.config';
 import { SearchLog, SearchLogDeps, SearchLogSnapshot, SeedEntry, devLog } from './search-log';
@@ -40,6 +41,7 @@ function isSnapshot(value: unknown): value is SearchLogSnapshot {
 
 // Written beside the target and renamed over it, so a crash never leaves a half-written file.
 function writeSnapshot(file: string, snapshot: SearchLogSnapshot) {
+  mkdirSync(dirname(file), { recursive: true });
   const temp = `${file}.tmp`;
   writeFileSync(temp, JSON.stringify(snapshot));
   renameSync(temp, file);

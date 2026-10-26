@@ -11,6 +11,12 @@ const counts = (spelling: string) => Promise.resolve(spelling.includes('none') ?
 const submit = (log: SearchLog, term: string, clientId = crypto.randomUUID()) =>
   log.submit({ term, submissionId: crypto.randomUUID(), clientId, ip: '1.1.1.1' });
 const tmpFile = () => join(mkdtempSync(join(tmpdir(), 'search-log-')), 'log.json');
+// A directory path that is really a file, so the file can never be written under it.
+const blockedDir = () => {
+  const path = tmpFile();
+  writeFileSync(path, '');
+  return path;
+};
 const seed = [{ term: 'Gold', clients: 3, searches: 4 }];
 
 function start(file: string, loadSeed = vi.fn(() => seed)) {
@@ -81,6 +87,19 @@ describe('persistent search log', () => {
     expect(JSON.parse(readFileSync(file, 'utf-8')).version).toBe(1);
   });
 
+  it('creates a missing directory for the file, and a later start loads it without seeding', async () => {
+    const file = join(mkdtempSync(join(tmpdir(), 'search-log-')), 'nested', 'deeper', 'log.json');
+    const first = start(file);
+    await first.ready;
+    expect(existsSync(file)).toBe(true);
+
+    const second = start(file);
+    await second.ready;
+
+    expect(second.loadSeed).not.toHaveBeenCalled();
+    expect(second.searchLog.aggregates()).toEqual(first.searchLog.aggregates());
+  });
+
   it('loads the file on a later start and does not seed', async () => {
     const file = tmpFile();
     const first = start(file);
@@ -149,7 +168,7 @@ describe('persistent search log', () => {
 
   it('dev-logs a failed write without term data and keeps recording', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-    const { ready, searchLog } = start(join(tmpdir(), 'no-such-dir-for-search-log', 'log.json'));
+    const { ready, searchLog } = start(join(blockedDir(), 'log.json'));
     await ready;
 
     expect(await submit(searchLog, 'silver')).toBe('recorded');
