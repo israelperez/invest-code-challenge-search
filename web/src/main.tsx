@@ -7,6 +7,7 @@ import { createApiClient } from './api/client';
 import { config, popularRequestLimit } from './config';
 import { createClientId } from './search/client-id';
 import { createPopularSource } from './search/popular-source';
+import { createRecentSearchStore } from './search/recent-search-store';
 import { createSearchLogger } from './search/search-logger';
 import { createSearchSource } from './search/search-source';
 import { createSuggestionSource } from './search/suggestion-source';
@@ -19,6 +20,7 @@ const backend = {
   api, source: createSearchSource(api, config),
   suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }),
   popular: createPopularSource(api, { limit: popularRequestLimit }),
+  recent: config.recentSearches ? createRecentSearchStore(undefined, { limit: config.recentSearchLimit }) : null,
   logSearch: createSearchLogger(api, createClientId()),
 };
 

@@ -13,6 +13,7 @@ import type {
 } from '../../src/api/types';
 import { config, popularRequestLimit } from '../../src/config';
 import { createPopularSource } from '../../src/search/popular-source';
+import { createRecentSearchStore, type RecentSearchStore } from '../../src/search/recent-search-store';
 import { createSearchLogger } from '../../src/search/search-logger';
 import { createSearchSource } from '../../src/search/search-source';
 import { createSuggestionSource } from '../../src/search/suggestion-source';
@@ -27,6 +28,7 @@ export const catalogues: Record<string, string[]> = {
   b: catalogue('B', 20),
   c: catalogue('C', 18),
   d: catalogue('D', 19),
+  none: [],
 };
 export const fake = { indexedAt: 1 };
 export const doc = (id: string): InstrumentDocument => ({
@@ -122,13 +124,20 @@ export function fakeApi() {
 }
 export type FakeApi = ReturnType<typeof fakeApi>;
 
-export function renderApp(api: FakeApi) {
+// The recent store sits over a fresh in-memory Storage per call; pass `recent: null` for the flag off, or a store to share one.
+export function freshRecentStore(limit: number = config.recentSearchLimit) {
+  const data = new Map<string, string>();
+  const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) } as Storage;
+  return createRecentSearchStore(() => storage, { limit });
+}
+
+export function renderApp(api: FakeApi, { recent = freshRecentStore() }: { recent?: RecentSearchStore | null } = {}) {
   const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit }), logSearch: createSearchLogger(api, () => 'test-client') }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit }), recent, logSearch: createSearchLogger(api, () => 'test-client') }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>

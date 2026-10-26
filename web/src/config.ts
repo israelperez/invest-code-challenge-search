@@ -31,6 +31,10 @@ export const config = {
   popularMax: 15,
   // Keeps the popular pills on one line, hiding those that don't fit, instead of wrapping.
   popularSearchOneLine: true,
+  // Feature flag: remember this user's searches and offer them when the input is focused.
+  recentSearches: true,
+  // Recent searches kept, newest first.
+  recentSearchLimit: 5,
   // Betashares ETFs offered as pills when there are no popular searches to show.
   featuredSearches: ['A200', 'NDQ', 'QAU', 'DHHF', 'HQLT', 'BGBL'],
 } as const;
