@@ -1,6 +1,7 @@
 import type { FacetEntry } from '../api/types';
 import { config } from '../config';
 import { issuerLabel } from '../format/issuer-label';
+import { kindLabel } from '../format/kind-label';
 import type { Filters } from './build-search-request';
 
 export type Facets = Record<string, FacetEntry[]>;
@@ -30,7 +31,8 @@ export type FilterSection = {
 // Matches the API's configured units_circulating buckets; the real rows replace these once the counts arrive.
 export const UNIT_BUCKET_ROWS = 5;
 
-const KIND_LABELS: Record<string, string> = { etf: 'ETFs', equity: 'Stocks' };
+// Always listed in the Type section, in this order.
+const KNOWN_KINDS = ['etf', 'equity'];
 
 // Shown before Type; portfolio eligibility is shown last.
 const BETASHARES_FLAGS = [
@@ -83,7 +85,7 @@ export type AppliedChip = { id: string; label: string; next: Filters };
 // One chip per applied value, in panel order; each `next` is the filters without just that value.
 export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
   const chosenKinds = filters.kind ?? [];
-  const kinds = [...new Set([...Object.keys(KIND_LABELS), ...chosenKinds])].filter((k) => chosenKinds.includes(k));
+  const kinds = [...new Set([...KNOWN_KINDS, ...chosenKinds])].filter((k) => chosenKinds.includes(k));
   const chosenIssuers = filters.issuer ?? [];
   const drop = (key: 'kind' | 'issuer', value: string): Filters => {
     const list = (filters[key] ?? []).filter((v) => v !== value);
@@ -96,7 +98,7 @@ export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
     flags.filter(({ key, value }) => filters[key] === value).map(({ key, label }) => ({ id: key, label, next: without(filters, key) }));
   return [
     ...flagChips(BETASHARES_FLAGS),
-    ...kinds.map((kind) => ({ id: `kind:${kind}`, label: KIND_LABELS[kind] ?? kind, next: drop('kind', kind) })),
+    ...kinds.map((kind) => ({ id: `kind:${kind}`, label: kindLabel(kind, true), next: drop('kind', kind) })),
     ...[...chosenIssuers].sort(byLabel).map((slug) => ({ id: `issuer:${slug}`, label: issuerLabel(slug), next: drop('issuer', slug) })),
     ...(units
       ? [
@@ -117,7 +119,7 @@ export const applyLabel = (count: number) =>
 
 // `known` may be older than `facets`; it only supplies the bucket rows, so they don't vanish while counts reload.
 export function filterSections(facets: Facets | undefined, filters: Filters, known: Facets | undefined = facets): FilterSection[] {
-  const kinds = [...new Set([...Object.keys(KIND_LABELS), ...(facets?.kind ?? []).map((e) => e.value)])];
+  const kinds = [...new Set([...KNOWN_KINDS, ...(facets?.kind ?? []).map((e) => e.value)])];
   const chosen = filters.kind ?? [];
   const kindSection: FilterSection = {
     id: 'kind',
@@ -126,7 +128,7 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
     options: kinds.map((kind) => {
       const selected = chosen.includes(kind);
       const kindList = selected ? chosen.filter((k) => k !== kind) : [...chosen, kind];
-      return option(kind, KIND_LABELS[kind] ?? kind, countOf(facets, 'kind', kind), selected, kindList.length ? { ...filters, kind: kindList } : without(filters, 'kind'));
+      return option(kind, kindLabel(kind, true), countOf(facets, 'kind', kind), selected, kindList.length ? { ...filters, kind: kindList } : without(filters, 'kind'));
     }),
   };
 
@@ -161,7 +163,7 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
     : Array.from({ length: UNIT_BUCKET_ROWS }, (_, i) => ({ ...option(`placeholder-${i}`, '', undefined, false, filters), placeholder: true, disabled: true }));
   const unitsSection: FilterSection = {
     id: 'units_circulating',
-    legend: 'Shares issued (stocks only)',
+    legend: 'Shares issued (equities only)',
     control: 'radio',
     options: [
       any,

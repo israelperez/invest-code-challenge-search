@@ -3,6 +3,7 @@ import { useState } from 'react';
 import type { InstrumentDocument } from '../api/types';
 import defaultLogo from '../assets/default-logo.svg';
 import { issuerLabel } from '../format/issuer-label';
+import { kindLabel } from '../format/kind-label';
 
 const unitsFormat = new Intl.NumberFormat('en-AU');
 
@@ -50,7 +51,7 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
           <Text>{instrument.display_name}</Text>
         </Flex>
         <Text color="fg.muted" fontSize="sm">
-          {[instrument.kind.toUpperCase(), issuer, units && `${unitsFormat.format(Number(units))} units on issue`]
+          {[kindLabel(instrument.kind), issuer, units && `${unitsFormat.format(Number(units))} units on issue`]
             .filter(Boolean)
             .join(' · ')}
         </Text>
