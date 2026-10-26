@@ -1,5 +1,5 @@
 import './jsdom-setup';
-import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
@@ -8,6 +8,7 @@ import type { FacetEntry, InstrumentDocument, InstrumentsBatchRequest, SearchInd
 import { config } from '../../src/config';
 import { createSearchSource } from '../../src/search/search-source';
 import { SearchBackendContext } from '../../src/search/search-source-context';
+import { system } from '../../src/theme';
 
 // A fake API over catalogues named by the search text: "a" has 834 instruments, "b" 20, "c" 18 and "d" 19.
 const catalogue = (prefix: string, length: number) =>
@@ -89,7 +90,7 @@ export function renderApp(api: FakeApi) {
   const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
-    <ChakraProvider value={defaultSystem}>
+    <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
         <SearchBackendContext.Provider value={{ api, source }}>
           <App />

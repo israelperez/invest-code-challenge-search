@@ -35,8 +35,10 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
       as="li"
       ref={focusTarget}
       tabIndex={focusTarget ? -1 : undefined}
-      gap="4"
+      columnGap="4"
+      rowGap="2"
       alignItems="center"
+      wrap="wrap"
       paddingY="3"
       borderBottomWidth="1px"
       borderColor="border"
@@ -53,11 +55,14 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
             .join(' · ')}
         </Text>
       </Box>
-      <Flex gap="1" wrap="wrap" justifyContent="flex-end">
-        {instrument.is_betashares && <Badge>Betashares</Badge>}
-        {instrument.is_flagship_fund && <Badge>Flagship</Badge>}
-        {instrument.is_auto_invest_included && <Badge>Auto Invest</Badge>}
-      </Flex>
+      {/* On mobile the badges take their own line, indented past the logo (boxSize 10 plus the 4 gap) to line up with the text. */}
+      {(instrument.is_betashares || instrument.is_flagship_fund || instrument.is_auto_invest_included) && (
+        <Flex gap="1" wrap="wrap" flexBasis={{ base: 'full', tablet: 'auto' }} paddingStart={{ base: '14', tablet: '0' }} justifyContent={{ base: 'flex-start', tablet: 'flex-end' }}>
+          {instrument.is_betashares && <Badge>Betashares</Badge>}
+          {instrument.is_flagship_fund && <Badge>Flagship</Badge>}
+          {instrument.is_auto_invest_included && <Badge>Auto Invest</Badge>}
+        </Flex>
+      )}
     </Flex>
   );
 }

@@ -38,10 +38,13 @@ export function Results({
   state,
   query,
   onSortChange,
+  filtersButton,
 }: {
   state: SearchState;
   query: UseQueryResult<SearchIndexResponse>;
   onSortChange: (orderBy: OrderBy | undefined) => void;
+  // The mobile drawer trigger, beside the sort.
+  filtersButton?: React.ReactNode;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const count = query.data?.count ?? 0;
@@ -49,21 +52,23 @@ export function Results({
   // The header stays mounted through error, loading and loaded, so the select keeps focus and never moves.
   return (
     <Box marginTop="6">
-      <Flex justifyContent="space-between" alignItems="center" gap="4" wrap="wrap">
-        {/* Always present, so wrapping depends on container width alone, not on whether the heading has loaded. */}
-        <Box minWidth="40" minHeight="8" display="flex" alignItems="center">
+      <Flex justifyContent="space-between" alignItems="center" gap="3" wrap="wrap">
+        {filtersButton}
+        {/* Always present, so wrapping depends on container width alone, not on whether the heading has loaded. On mobile it sits under the filters and sort row. */}
+        <Box minWidth="40" minHeight="8" display="flex" alignItems="center" order={{ base: 1, tablet: 0 }} flexBasis={{ base: 'full', tablet: 'auto' }}>
           {query.data && (
             <Heading as="h2" size="md" aria-live="polite" tabIndex={-1} ref={headingRef}>
               {count === 1 ? '1 result' : `${count} results`}
             </Heading>
           )}
         </Box>
-        <Field.Root orientation="horizontal" width="auto" maxWidth="full" marginStart="auto">
-          <Field.Label flex="none" whiteSpace="nowrap">
+        <Field.Root orientation="horizontal" width="auto" minWidth="0" maxWidth="full" flex={{ base: '1', tablet: 'none' }} marginStart={{ tablet: 'auto' }}>
+          {/* Still the select's accessible name on mobile, where the row has no room for it. */}
+          <Field.Label flex="none" whiteSpace="nowrap" srOnly={{ base: true, tablet: false }}>
             Sort by
           </Field.Label>
           {/* Fixed width, sized for the longest label, so the select never resizes with the chosen option. */}
-          <NativeSelect.Root width="72" maxWidth="full">
+          <NativeSelect.Root width={{ base: 'full', tablet: '72' }} maxWidth="full">
             <NativeSelect.Field value={state.order_by ?? ''} onChange={(e) => onSortChange((e.target.value || undefined) as OrderBy | undefined)}>
               {SORT_OPTIONS.map(({ label, value }) => (
                 <option key={label} value={value ?? ''}>
@@ -93,7 +98,7 @@ export function Results({
           </List>
         </Box>
       ) : (
-        <LoadedResults state={state} data={query.data} headingRef={headingRef} />
+        <LoadedResults state={state} data={query.data} stale={query.isPlaceholderData} headingRef={headingRef} />
       )}
     </Box>
   );
@@ -120,10 +125,13 @@ const startProgress = (base: SearchIndexResponse): Progress => ({
 function LoadedResults({
   state,
   data,
+  stale,
   headingRef,
 }: {
   state: SearchState;
   data: SearchIndexResponse;
+  // `data` belongs to the previous filters and the new ones are loading.
+  stale: boolean;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   const { source } = useSearchBackend();
@@ -185,7 +193,7 @@ function LoadedResults({
 
   const hasMore = progress.consumed < count;
   return (
-    <Box>
+    <Box opacity={stale ? '0.6' : undefined} aria-busy={stale || undefined}>
       <VisuallyHidden role="status" aria-live="polite">
         {announcement}
       </VisuallyHidden>
@@ -218,7 +226,7 @@ function LoadedResults({
                 </Button>
               </Alert.Root>
             ) : hasMore ? (
-              <Button onClick={() => void loadMore()} loading={progress.status === 'loading'} width="40">
+              <Button onClick={() => void loadMore()} loading={progress.status === 'loading'} disabled={stale} width="40">
                 Load more
               </Button>
             ) : (

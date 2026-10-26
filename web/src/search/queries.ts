@@ -55,6 +55,11 @@ export function useSearchIndex(state: SearchState | null) {
       }),
     enabled: request !== null && !version.isPending,
     staleTime: config.searchStaleTimeMs,
+    // Changing only the filters keeps the previous results on screen while they load; a new term or sort shows skeletons.
+    placeholderData: (previous, previousQuery) => {
+      const before = previousQuery?.queryKey[2];
+      return before?.search_text === request?.search_text && before?.order_by === request?.order_by ? previous : undefined;
+    },
   });
   useEffect(() => observeIndexedAt(queryClient, source, query.data?.indexed_at), [queryClient, source, query.data]);
   return query;
