@@ -84,7 +84,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
    - Results show all three refinements (AND across sections, OR within Issuer)
    - Options that would give 0 results show disabled, not hidden, so nothing jumps
 4. Untick ETFs, pick a **Shares issued** range.
-   - Only stocks remain, as the "(stocks only)" label warns
+   - Only shares remain, as the "(equities only)" label warns
 
 **Proves:** filtering **[AC]**; live counts prevent dead ends; on a wide screen each change shows in the results straight away.
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { config } from '../config';
 import { issuerLabel } from '../format/issuer-label';
 import type { Filters } from './build-search-request';
 import { appliedChips, appliedCount, applyLabel, bucketLabel, filterSections, UNIT_BUCKET_ROWS, type Facets } from './filter-options';
@@ -43,20 +44,20 @@ const summary = (id: string, filters = {}) =>
 describe('filterSections', () => {
   it('lists the sections in order', () => {
     expect(filterSections(facets, {}).map((s) => s.legend)).toEqual([
-      'Type',
-      'Issuer',
       'Betashares funds only',
       'Flagship funds',
       'Available for Auto Invest',
+      'Type',
+      'Issuer',
+      'Shares issued (equities only)',
       'Portfolio eligible only',
-      'Shares issued (stocks only)',
     ]);
   });
 
   it('labels kinds, disabling zero counts', () => {
     expect(summary('kind')).toEqual([
       { label: 'ETFs', count: 12, disabled: false, selected: false },
-      { label: 'Stocks', count: 0, disabled: true, selected: false },
+      { label: 'Shares (equities)', count: 0, disabled: true, selected: false },
     ]);
   });
 
@@ -66,7 +67,7 @@ describe('filterSections', () => {
 
   it('shows an unknown kind as its raw value', () => {
     const odd = { ...facets, kind: [...facets.kind, { value: 'reit', count: 1 }] };
-    expect(section('kind', odd).options.map((o) => o.label)).toEqual(['ETFs', 'Stocks', 'reit']);
+    expect(section('kind', odd).options.map((o) => o.label)).toEqual(['ETFs', 'Shares (equities)', 'reit']);
   });
 
   it('reads the true count for flags and the false count for portfolio eligible', () => {
@@ -102,10 +103,10 @@ describe('filterSections', () => {
   });
 
   it('still lists the known options before any counts arrive', () => {
-    const [kind, , , , , , units] = filterSections(undefined, {});
+    const [, , , kind, , units] = filterSections(undefined, {});
     expect(kind.options.map((o) => [o.label, o.count, o.disabled])).toEqual([
       ['ETFs', undefined, false],
-      ['Stocks', undefined, false],
+      ['Shares (equities)', undefined, false],
     ]);
     // Stand-in rows keep the section the same height as the real one.
     expect(units.options).toHaveLength(1 + UNIT_BUCKET_ROWS);
@@ -156,6 +157,11 @@ describe('issuer section', () => {
     expect(options.map((o) => o.id)).toEqual(slugs.slice().sort((x, y) => issuerLabel(x).localeCompare(issuerLabel(y)) || x.localeCompare(y)));
     expect(options.map((o) => o.id)).toContain('i ');
     expect(options.filter((o) => o.label === 'Investors Mutual')).toHaveLength(2);
+  });
+
+  it('features as many issuers as config.featuredIssuers', () => {
+    expect(config.featuredIssuers).toBe(8);
+    expect(issuers(issuerFacets()).featured).toHaveLength(config.featuredIssuers);
   });
 
   it('features the top 8 by count, then label, then slug', () => {
@@ -216,13 +222,13 @@ describe('appliedChips', () => {
 
   it('has one chip per value in panel order, labelled without the raw slug', () => {
     expect(appliedChips(all, known).map((c) => c.label)).toEqual([
+      'Betashares funds only',
       'ETFs',
-      'Stocks',
+      'Shares (equities)',
       'Investors Mutual',
       'Vanguard',
-      'Betashares funds only',
-      'Portfolio eligible only',
       'Shares issued: 1 to 5 billion',
+      'Portfolio eligible only',
     ]);
   });
 
@@ -230,7 +236,7 @@ describe('appliedChips', () => {
     const chips = appliedChips(all, known);
     const next = (label: string) => chips.find((c) => c.label === label)!.next;
     expect(next('ETFs')).toEqual({ ...all, kind: ['equity'] });
-    expect(next('Stocks')).toEqual({ ...all, kind: ['etf'] });
+    expect(next('Shares (equities)')).toEqual({ ...all, kind: ['etf'] });
     expect(next('Vanguard')).toEqual({ ...all, issuer: ['investors_mutual'] });
     expect(next('Betashares funds only')).not.toHaveProperty('is_betashares');
     expect(next('Portfolio eligible only')).not.toHaveProperty('is_portfolio_excluded');

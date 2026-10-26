@@ -10,7 +10,7 @@ const chipRow = () => screen.queryByRole('list', { name: 'Applied filters' });
 const remove = (label: string) => screen.getByRole('button', { name: `Remove ${label}` });
 const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 
-// Ticks ETFs and Stocks, then applies them the way the layout does: the drawer button, or the rail's debounce.
+// Ticks ETFs and Shares, then applies them the way the layout does: the drawer button, or the rail's debounce.
 async function setup(live: boolean) {
   const mobileMatchMedia = window.matchMedia;
   if (live) window.matchMedia = ((query: string) => ({ ...mobileMatchMedia(query), matches: true })) as typeof window.matchMedia;
@@ -19,7 +19,7 @@ async function setup(live: boolean) {
   await search('a');
   expect(chipRow()).toBeNull();
   if (!live) fireEvent.click(screen.getByRole('button', { name: /^Filters/ }));
-  for (const name of [/ETFs/, /Stocks/]) {
+  for (const name of [/ETFs/, /Shares \(equities\)/]) {
     const box = await screen.findByRole('checkbox', { name });
     await waitFor(() => expect((box as HTMLInputElement).disabled).toBe(false));
     fireEvent.click(box);
@@ -63,9 +63,9 @@ describe.each([
 
     fireEvent.click(remove('ETFs'));
     await tick(10);
-    expect(document.activeElement).toBe(remove('Stocks'));
+    expect(document.activeElement).toBe(remove('Shares (equities)'));
 
-    fireEvent.click(remove('Stocks'));
+    fireEvent.click(remove('Shares (equities)'));
     await tick(10);
     expect(chipRow()).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2 }));
@@ -73,7 +73,7 @@ describe.each([
 
   it('moves focus to the previous chip when the last one is removed', async () => {
     await setup(live);
-    fireEvent.click(remove('Stocks'));
+    fireEvent.click(remove('Shares (equities)'));
     await tick(10);
     expect(document.activeElement).toBe(remove('ETFs'));
   });

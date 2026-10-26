@@ -49,6 +49,13 @@ describe('Load more', () => {
     expect(api.instrumentsBatch.mock.calls[0][0]).toEqual({ ids, snapshot: 1 });
   });
 
+  it('labels each row with its type, not the raw value', async () => {
+    renderApp(fakeApi());
+    await search('a');
+    expect(rows()[0].textContent).toContain('ETF · Acme');
+    expect(rows()[0].textContent).not.toContain('etf');
+  });
+
   it('skips IDs the batch reports missing, logs them, and still moves past them', async () => {
     const api = fakeApi();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -218,7 +225,7 @@ describe('Load more', () => {
       return base(body, signal);
     });
     renderApp(api);
-    fireEvent.change(screen.getByLabelText('Search stocks and ETFs'), { target: { value: 'a' } });
+    fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await screen.findByText('Something went wrong');

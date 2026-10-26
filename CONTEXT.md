@@ -8,6 +8,7 @@ Finding ASX-listed investments on the Betashares website: typing a query, being 
 
 **Instrument**:
 A single ASX-listed investment a user can find, either an ETF or an equity.
+The UI labels the two types "Shares (equities)" and "ETFs" (a row says "Share (equity)" or "ETF"), plain word first, so people new to investing learn the term.
 _Avoid_: Product, fund, security, stock
 
 **Ticker**:

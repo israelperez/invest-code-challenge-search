@@ -68,7 +68,7 @@ describe('Filters', () => {
 
     await click(box(/ETFs/));
     await tick(50);
-    await click(box(/Stocks/));
+    await click(box(/Shares \(equities\)/));
     await tick(config.countsDebounceMs);
 
     const sent = countRequests(api);
@@ -99,7 +99,7 @@ describe('Filters', () => {
     api.searchIndex.mockImplementationOnce(async (_body, signal) => (signals.push(signal!), second.promise));
 
     await tickOption(/ETFs/);
-    await tickOption(/Stocks/);
+    await tickOption(/Shares \(equities\)/);
     expect(signals[0].aborted).toBe(true);
 
     await act(async () => first.resolve(stale));
@@ -146,7 +146,7 @@ describe('Filters', () => {
   it('ORs within a section and ANDs across sections', async () => {
     const api = await setup();
     await click(box(/ETFs/));
-    await click(box(/Stocks/));
+    await click(box(/Shares \(equities\)/));
     await click(box(/Betashares funds only/));
     await click(screen.getByRole('radio', { name: /100 to 500 million/ }));
     await tick(config.countsDebounceMs);
@@ -183,14 +183,14 @@ describe('Filters', () => {
     await tickOption(/ETFs/);
     await click(applyButton()!);
     await tick(10);
-    await tickOption(/Stocks/);
+    await tickOption(/Shares \(equities\)/);
     const before = resultRequests(api).length;
 
     await click(screen.getByRole('button', { name: 'Clear filters' }));
     await tick(config.countsDebounceMs + 10);
 
     expect(box(/ETFs/).checked).toBe(false);
-    expect(box(/Stocks/).checked).toBe(false);
+    expect(box(/Shares \(equities\)/).checked).toBe(false);
     expect(resultRequests(api)).toHaveLength(before);
     expect(rows().length).toBeGreaterThan(0);
 
@@ -252,7 +252,7 @@ describe('Filters', () => {
 
     fireEvent.click(filtersTrigger()!);
     expect((await screen.findByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(true);
-    expect(box(/Stocks/).checked).toBe(false);
+    expect(box(/Shares \(equities\)/).checked).toBe(false);
   });
 
   it('disables a zero-count option, and keeps it enabled once selected', async () => {
@@ -265,11 +265,11 @@ describe('Filters', () => {
     }));
     await tick(config.countsDebounceMs);
     expect(box(/Flagship funds/).disabled).toBe(true);
-    expect(box(/Stocks/).disabled).toBe(false);
+    expect(box(/Shares \(equities\)/).disabled).toBe(false);
 
-    await tickOption(/Stocks/);
-    expect(box(/Stocks/).checked).toBe(true);
-    expect(box(/Stocks/).disabled).toBe(false);
+    await tickOption(/Shares \(equities\)/);
+    expect(box(/Shares \(equities\)/).checked).toBe(true);
+    expect(box(/Shares \(equities\)/).disabled).toBe(false);
   });
 
   describe('when the counts request fails', () => {
@@ -292,13 +292,13 @@ describe('Filters', () => {
         expect(screen.getAllByText('834').length).toBeGreaterThan(0);
       }
       failNextCounts(api);
-      await tickOption(afterSuccess ? /Stocks/ : /ETFs/);
+      await tickOption(afterSuccess ? /Shares \(equities\)/ : /ETFs/);
 
       expect(screen.getByText("Couldn't update the counts.")).toBeTruthy();
       noNumbers();
       expect(applyButton()!.textContent).toBe('Show results');
       expect(applyButton()!.disabled).toBe(false);
-      expect(box(/Stocks/).disabled).toBe(false);
+      expect(box(/Shares \(equities\)/).disabled).toBe(false);
 
       const before = countRequests(api).length;
       await click(screen.getByRole('button', { name: 'Retry' }));
@@ -445,7 +445,7 @@ describe('Filters', () => {
 
       await click(box(/ETFs/));
       await tick(50);
-      await click(box(/Stocks/));
+      await click(box(/Shares \(equities\)/));
       await tick(config.countsDebounceMs + 10);
 
       expect(resultRequests(api)).toHaveLength(before + 1);
