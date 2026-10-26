@@ -223,6 +223,21 @@ curl 'localhost:8787/popular?limit=10'
 - Seeding finishes before the first answer. A failed seed leaves the log empty and is logged; it doesn't stop the server. Logs injected in tests start empty.
 - Each spelling counts at most 5 original casings, set in `src/search-log/search-log.config.ts`.
 
+## Zero-result insights
+
+`GET /insights/zero-results` lists the terms people searched that never returned results, grouped by dedupe key: product gaps a real build would act on. It takes no query parameters.
+
+```bash
+ENABLE_INSIGHTS=true npm start   # `npm run api` from the root already sets it
+curl 'localhost:8787/insights/zero-results'
+# { "groups": [{ "key": "lithium miners", "clients": 9, "total": 9, "spellings": [{ "text": "lithium miners", "total": 4 }, { "text": "miners lithium", "total": 3 }, { "text": "the lithium miners", "total": 2 }] }], "includes_seed_data": true }
+```
+
+- Development only. The route exists only when the API starts with `ENABLE_INSIGHTS=true` (the dev script sets it; `serve:prod` and a plain `node` start leave it off), and otherwise answers `404` like any unknown route. It is admin-only in production: a real build would put it behind admin authentication.
+- A key is listed when no spelling of it has ever returned results and at least 2 distinct clients searched it. Groups are ranked by distinct clients, then total searches; spellings by total searches, in their most common original casing.
+- The history is demo data, the same seeded log as popular searches. `includes_seed_data` is always `true`.
+- It lives in `src/insights/`, with its own flag, so removing the folder and its registration in `src/app.ts` leaves the rest untouched.
+
 ## Errors
 
 An invalid body returns `400` with a reason, e.g. `{ "message": "kind must be an array of strings" }`. An unknown instrument returns `404 { "message": "Instrument not found: XYZ:AU" }`.

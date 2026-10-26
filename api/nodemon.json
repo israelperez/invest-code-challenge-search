@@ -1,6 +1,7 @@
 {
   "watch": ["src", "data"],
   "ignore": ["data/search-log.json"],
+  "env": { "ENABLE_INSIGHTS": "true" },
   "ext": "ts,json",
   "exec": "node -r ts-node/register ./src/main.ts"
 }

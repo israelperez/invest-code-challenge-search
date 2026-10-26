@@ -170,18 +170,48 @@
     "searches": 12
   },
   {
-    "term": "zzzz",
-    "clients": 6,
-    "searches": 7
-  },
-  {
-    "term": "Xbitcoinx",
-    "clients": 5,
-    "searches": 5
-  },
-  {
     "term": "lithium miners",
     "clients": 4,
     "searches": 4
+  },
+  {
+    "term": "miners lithium",
+    "clients": 3,
+    "searches": 3
+  },
+  {
+    "term": "the lithium miners",
+    "clients": 2,
+    "searches": 2
+  },
+  {
+    "term": "oil gas",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "gas oil",
+    "clients": 2,
+    "searches": 2
+  },
+  {
+    "term": "tesla",
+    "clients": 5,
+    "searches": 6
+  },
+  {
+    "term": "Tesla",
+    "clients": 2,
+    "searches": 2
+  },
+  {
+    "term": "cannabis etf",
+    "clients": 3,
+    "searches": 3
+  },
+  {
+    "term": "weed stocks",
+    "clients": 2,
+    "searches": 2
   }
 ]

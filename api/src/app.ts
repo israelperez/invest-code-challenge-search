@@ -15,6 +15,8 @@ import {
   initSearchLogModule,
   initSearchModule,
 } from './index';
+import { InsightsController } from './insights/insights.controller';
+import { initInsightsModule } from './insights/module';
 import { SearchLog } from './search-log/search-log';
 import { HealthController } from './health/health.controller';
 import { EnvVarsConfig, envConfig } from './shared/configs/env.config';
@@ -50,6 +52,7 @@ export function createApp({
     repository,
     clock,
     config.searchLogFile,
+    config.enableInsights,
     searchLog,
   );
 
@@ -71,6 +74,8 @@ interface AppControllers {
   searchIndexController: SearchIndexController;
   searchLogController: SearchLogController;
   popularController: PopularController;
+  // Undefined when the enableInsights flag is off, so the route 404s.
+  insightsController?: InsightsController;
   instrumentsBatchController: InstrumentsBatchController;
   facetsController: FacetsController;
   flushSearchLog: () => void;
@@ -80,6 +85,7 @@ function initAppModules(
   repository: InstrumentsRepository,
   clock: () => number,
   searchLogFile: string,
+  enableInsights: boolean,
   searchLog?: SearchLog,
 ): AppControllers {
   const healthController = new HealthController();
@@ -91,8 +97,16 @@ function initAppModules(
     instrumentsBatchController,
     facetsController,
   } = initSearchModule(repository);
-  const { searchLogController, popularController, flushSearchLog } =
-    initSearchLogModule(searchService, clock, searchLogFile, searchLog);
+  const {
+    searchLogController,
+    popularController,
+    searchLog: log,
+    ready,
+    flushSearchLog,
+  } = initSearchLogModule(searchService, clock, searchLogFile, searchLog);
+  const insightsController = enableInsights
+    ? initInsightsModule(log, ready).insightsController
+    : undefined;
 
   return {
     healthController,
@@ -100,6 +114,7 @@ function initAppModules(
     searchIndexController,
     searchLogController,
     popularController,
+    insightsController,
     instrumentsBatchController,
     facetsController,
     flushSearchLog,
@@ -117,6 +132,9 @@ function registerAppRoutes(app: Koa, controllers: AppControllers) {
     controllers.searchIndexController.getRouter(),
     controllers.searchLogController.getRouter(),
     controllers.popularController.getRouter(),
+    ...(controllers.insightsController
+      ? [controllers.insightsController.getRouter()]
+      : []),
     controllers.facetsController.getRouter(),
   ];
 
