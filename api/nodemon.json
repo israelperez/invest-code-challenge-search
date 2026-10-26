@@ -1,5 +1,6 @@
 {
   "watch": ["src", "data"],
+  "ignore": ["data/search-log.json"],
   "ext": "ts,json",
   "exec": "node -r ts-node/register ./src/main.ts"
 }

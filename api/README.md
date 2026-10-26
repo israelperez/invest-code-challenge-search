@@ -202,8 +202,26 @@ curl -X POST localhost:8787/searches \
 - `term` is 1 to 100 characters. `submission_id` is a UUID. The `X-Client-Id` header is a required UUID the client keeps in localStorage. Anyone can fake it, so it raises the cost of poisoning rather than preventing it. Anything invalid returns `400`.
 - Otherwise the answer is always `202`, including when the search is not recorded: the request is rate limited (token buckets per IP, 60 a minute with a burst of 20, and per client ID, 20 a minute with a burst of 10), the dedupe key is empty (blank, only stop words, or a leading, trailing or repeated `OR`), or the `submission_id` was seen in the last 10 minutes (retries are idempotent).
 - The server counts the matches itself, without filters, for the trimmed, lowercased spelling (`OR` stays uppercase), and records the key, spelling, client, count and submission.
-- The log is in memory and bounded: 5,000 keys, 1,000 distinct clients per key, 10 spellings per key, 10,000 remembered submission IDs. All limits live in `src/search-log/search-log.config.ts`. It resets on restart.
+- The log is bounded: 5,000 keys, 1,000 distinct clients per key, 10 spellings per key, 10,000 remembered submission IDs. All limits live in `src/search-log/search-log.config.ts`.
+- It persists to a JSON file, `data/search-log.json` (gitignored), or the path in `SEARCH_LOG_FILE`. With no file the first start seeds it from `data/popular-seed.json` and saves; later starts load the file and don't seed. It is saved about a second after a recorded search (temp file, then rename) and on shutdown, and a failed save is logged without stopping the server. Submission IDs and rate limits are not saved, so they reset on restart.
+- An unreadable or invalid file (bad JSON, wrong `version`, wrong shape) is left alone: that run starts from the seed in memory and doesn't save. A file larger than the bounds is cut to them on load.
+- `npm run reset-log` deletes the file, so the next start seeds again. Stop the API first: a running API saves its log on shutdown and would write the old data back. Do this if `data/instruments.json` changes: saved result counts go stale. One file means one API instance; a real build would use a database and an analytics pipeline.
 - Validation rejects, rate-limit drops and evictions print one JSON line to the console, never the term.
+
+## Popular searches
+
+`GET /popular?limit=10` returns the most popular searches from the search log. It is strict: an unknown or repeated query parameter, or a `limit` that is not an integer from 1 to 50, returns `400`. `limit` defaults to 10.
+
+```bash
+curl 'localhost:8787/popular?limit=10'
+# { "terms": [{ "label": "Vanguard", "key": "vanguard", "clients": 15 }], "includes_seed_data": true }
+```
+
+- A key is listed when one of its spellings returns results, at least 3 distinct clients searched it, and it has no `OR`. They are ranked by distinct clients, then by total searches.
+- `label` is the most frequent spelling that returns results, in its most common original casing. `clients` is the distinct client count.
+- The history is demo data: when the app builds its own log it seeds it from `data/popular-seed.json` (term, clients, searches). Seeded searches use the normal aggregation, with real result counts, but skip rate limits and submission IDs. `includes_seed_data` is always `true`. The seed favours Betashares flagships so they lead the ranking.
+- Seeding finishes before the first answer. A failed seed leaves the log empty and is logged; it doesn't stop the server. Logs injected in tests start empty.
+- Each spelling counts at most 5 original casings, set in `src/search-log/search-log.config.ts`.
 
 ## Errors
 

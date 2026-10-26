@@ -39,7 +39,14 @@ describe('SearchLog recording', () => {
     expect(log.aggregates()).toEqual([
       {
         key: 'etf gold',
-        spellings: [{ spelling: 'gold etf', count: 1, unfiltered_count: 5 }],
+        spellings: [
+          {
+            spelling: 'gold etf',
+            display: 'Gold ETF',
+            count: 1,
+            unfiltered_count: 5,
+          },
+        ],
         distinct_clients: 1,
         total: 1,
         positive_total: 1,
@@ -70,7 +77,12 @@ describe('SearchLog recording', () => {
     ]);
     const entry = log.aggregates().find((e) => e.key === 'etf gold');
     expect(entry?.spellings).toEqual([
-      { spelling: 'gold etf', count: 2, unfiltered_count: 5 },
+      {
+        spelling: 'gold etf',
+        display: 'Gold ETF',
+        count: 2,
+        unfiltered_count: 5,
+      },
     ]);
   });
 

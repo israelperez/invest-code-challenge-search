@@ -8,6 +8,7 @@ import {
   InstrumentsBatchController,
   InstrumentsRepository,
   JsonInstrumentsRepository,
+  PopularController,
   SearchController,
   SearchIndexController,
   SearchLogController,
@@ -37,7 +38,6 @@ export function createApp({
   repository = new JsonInstrumentsRepository(envConfig.instrumentsFile),
   clock = () => Date.now(),
   searchLog,
-  // Config has no consumers yet.
   config = envConfig,
 }: AppDeps = {}): Koa {
   const app = new Koa();
@@ -49,8 +49,12 @@ export function createApp({
   const controllers: AppControllers = initAppModules(
     repository,
     clock,
+    config.searchLogFile,
     searchLog,
   );
+
+  // main.ts emits this on shutdown so a pending search log save isn't lost.
+  app.on('shutdown', controllers.flushSearchLog);
 
   // Register app routes with controllers.
   registerAppRoutes(app, controllers);
@@ -66,13 +70,16 @@ interface AppControllers {
   searchController: SearchController;
   searchIndexController: SearchIndexController;
   searchLogController: SearchLogController;
+  popularController: PopularController;
   instrumentsBatchController: InstrumentsBatchController;
   facetsController: FacetsController;
+  flushSearchLog: () => void;
 }
 
 function initAppModules(
   repository: InstrumentsRepository,
   clock: () => number,
+  searchLogFile: string,
   searchLog?: SearchLog,
 ): AppControllers {
   const healthController = new HealthController();
@@ -84,19 +91,18 @@ function initAppModules(
     instrumentsBatchController,
     facetsController,
   } = initSearchModule(repository);
-  const searchLogController = initSearchLogModule(
-    searchService,
-    clock,
-    searchLog,
-  );
+  const { searchLogController, popularController, flushSearchLog } =
+    initSearchLogModule(searchService, clock, searchLogFile, searchLog);
 
   return {
     healthController,
     searchController,
     searchIndexController,
     searchLogController,
+    popularController,
     instrumentsBatchController,
     facetsController,
+    flushSearchLog,
   };
 }
 
@@ -110,6 +116,7 @@ function registerAppRoutes(app: Koa, controllers: AppControllers) {
     controllers.instrumentsBatchController.getRouter(),
     controllers.searchIndexController.getRouter(),
     controllers.searchLogController.getRouter(),
+    controllers.popularController.getRouter(),
     controllers.facetsController.getRouter(),
   ];
 

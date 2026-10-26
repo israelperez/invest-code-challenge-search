@@ -25,4 +25,15 @@ export const config = {
   suggestionTermLimit: 5,
   // Placeholder rows shown in the suggestion list while the first lookup loads.
   suggestionSkeletonRows: 1,
+  // Popular pills shown at each size (the theme's tablet and desktop breakpoints); the request asks for the largest.
+  popularShown: { mobile: 6, tablet: 8, desktop: 13 },
+  // The most popular pills any size may show: the API seed holds 15 popular searches, so a higher count would show gaps.
+  popularMax: 15,
+  // Keeps the popular pills on one line, hiding those that don't fit, instead of wrapping.
+  popularSearchOneLine: true,
+  // Betashares ETFs offered as pills when there are no popular searches to show.
+  featuredSearches: ['A200', 'NDQ', 'QAU', 'DHHF', 'HQLT', 'BGBL'],
 } as const;
+
+// One request serves every size, so resizing never refetches.
+export const popularRequestLimit = Math.max(...Object.values(config.popularShown));

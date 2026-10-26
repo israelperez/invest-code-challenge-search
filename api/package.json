@@ -10,7 +10,8 @@
     "build": "tsc",
     "type-check": "tsc --noEmit -p tsconfig.test.json",
     "format": "prettier --write \"{src,tests}/**/*.ts\"",
-    "test": "vitest run"
+    "test": "vitest run",
+    "reset-log": "node -e \"require('fs').rmSync(process.env.SEARCH_LOG_FILE || 'data/search-log.json', { force: true })\""
   },
   "dependencies": {
     "@koa/bodyparser": "5.1.1",

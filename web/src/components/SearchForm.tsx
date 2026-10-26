@@ -1,6 +1,7 @@
 import { Box, Button, CloseButton, Combobox, Field, Flex, Input, Skeleton, Text, VisuallyHidden, createListCollection, useBreakpointValue } from '@chakra-ui/react';
 import { type FormEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { config } from '../config';
+import { PopularPills } from './PopularPills';
 import { useSearchBackend } from '../search/search-source-context';
 import type { Suggestions } from '../search/suggestion-source';
 
@@ -24,7 +25,8 @@ function announcement({ status, items }: Lookup) {
 
 // Fixed-size controls: the clear button is hidden, never removed, so nothing reflows while typing.
 // The list is a popover over the page, so opening it moves nothing either.
-export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
+// The popular searches show only before the first search; the results take their place.
+export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string) => void; showPopular: boolean }) {
   const { suggestions } = useSearchBackend();
   const inputId = useId();
   const listLabelId = `${inputId}-suggestions`;
@@ -193,6 +195,15 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
         {/* Helper text, not a placeholder: it stays visible while typing and wraps on narrow phones. */}
         <Field.HelperText>Search by ASX code (ticker) or name</Field.HelperText>
       </Field.Root>
+      {showPopular && (
+        <PopularPills
+          onPick={(term) => {
+            change(term);
+            setWantOpen(false);
+            onSearch(term);
+          }}
+        />
+      )}
     </form>
   );
 }
