@@ -7,6 +7,14 @@ The PR is a demo for a reviewer who hasn't seen the work: what changed, why, and
 
 <2–4 sentences: the user-visible behaviour or API contract this delivers.>
 
+<When the change touches existing code, follow with two short lists so a reviewer can't misread its reach. Say outright if no endpoint or user-visible behaviour changed. Skip both lists for purely additive work.>
+
+What changed:
+- <Each new or altered piece, and who uses it now or first (name the ticket).>
+
+What stayed the same:
+- <The existing behaviour, modules and tests this leaves untouched, and how that is proved.>
+
 ## Why
 
 <Context first: the problem, what comes next in the plan that depends on this (name the tickets), and what would break or be harder without it. Then the design reasoning: the approach chosen, the alternatives it beat, the trade-off accepted, and the constraint it protects. Link the PLAN.md section or ADR.>
