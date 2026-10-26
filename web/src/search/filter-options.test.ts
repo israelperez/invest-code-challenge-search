@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyLabel, bucketLabel, filterSections, UNIT_BUCKET_ROWS, type Facets } from './filter-options';
+import { issuerLabel } from '../format/issuer-label';
+import { appliedCount, applyLabel, bucketLabel, filterSections, UNIT_BUCKET_ROWS, type Facets } from './filter-options';
 
 const BUCKETS = [
   '0,100000000',
@@ -42,6 +43,7 @@ describe('filterSections', () => {
   it('lists the sections in order', () => {
     expect(filterSections(facets, {}).map((s) => s.legend)).toEqual([
       'Type',
+      'Issuer',
       'Betashares funds only',
       'Flagship funds',
       'Available for Auto Invest',
@@ -99,7 +101,7 @@ describe('filterSections', () => {
   });
 
   it('still lists the known options before any counts arrive', () => {
-    const [kind, , , , , units] = filterSections(undefined, {});
+    const [kind, , , , , , units] = filterSections(undefined, {});
     expect(kind.options.map((o) => [o.label, o.count, o.disabled])).toEqual([
       ['ETFs', undefined, false],
       ['Stocks', undefined, false],
@@ -131,5 +133,68 @@ describe('applyLabel', () => {
     [1240, 'Show 1,240 results'],
   ])('%i gives %s', (count, text) => {
     expect(applyLabel(count)).toBe(text);
+  });
+});
+
+describe('issuer section', () => {
+  // Ten issuers: counts 10..1, with a tie at the bottom and a colliding pair.
+  const slugs = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i ', 'investors mutual', 'investors_mutual'];
+  const counts = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1];
+  const issuerFacets = (over: Record<string, number> = {}): Facets => ({
+    ...facets,
+    issuer: slugs.map((value, i) => ({ value, count: over[value] ?? counts[i] })),
+  });
+  const issuers = (f: Facets | undefined, filters = {}, known = f) => filterSections(f, filters, known).find((s) => s.id === 'issuer')!;
+
+  it('sits right after Type and uses checkboxes', () => {
+    expect(issuers(issuerFacets())).toMatchObject({ legend: 'Issuer', control: 'checkbox' });
+  });
+
+  it('keeps the slug as the id, trailing whitespace and look-alikes included, ordered by label', () => {
+    const { options } = issuers(issuerFacets());
+    expect(options.map((o) => o.id)).toEqual(slugs.slice().sort((x, y) => issuerLabel(x).localeCompare(issuerLabel(y)) || x.localeCompare(y)));
+    expect(options.map((o) => o.id)).toContain('i ');
+    expect(options.filter((o) => o.label === 'Investors Mutual')).toHaveLength(2);
+  });
+
+  it('features the top 8 by count, then label, then slug', () => {
+    expect(issuers(issuerFacets()).featured).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+    // Ties at 3 between h and i: label order picks h.
+    expect(issuers(issuerFacets({ i: 3 })).featured).toContain('h');
+    expect(issuers(issuerFacets({ i: 3 })).featured).not.toContain('i ');
+    expect(issuers(issuerFacets({ 'i ': 3, 'investors mutual': 3 })).featured?.slice(-1)).toEqual(['h']);
+  });
+
+  it('adds a selected issuer outside the top 8 so it stays removable', () => {
+    expect(issuers(issuerFacets(), { issuer: ['investors_mutual'] }).featured).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'investors_mutual']);
+  });
+
+  it('ranks by the known facets, so rows stay while counts reload', () => {
+    const section = issuers(undefined, {}, issuerFacets());
+    expect(section.featured).toHaveLength(8);
+    expect(section.options.every((o) => o.count === undefined)).toBe(true);
+  });
+
+  it('counts, disables and toggles like Type', () => {
+    const f = issuerFacets({ b: 0 });
+    const { options } = issuers(f, { issuer: ['c'] });
+    const get = (id: string) => options.find((o) => o.id === id)!;
+    expect(get('b')).toMatchObject({ count: 0, disabled: true, selected: false });
+    expect(get('c')).toMatchObject({ selected: true, disabled: false, next: {} });
+    expect(get('a').next).toEqual({ issuer: ['c', 'a'] });
+    expect(issuers(issuerFacets({ c: 0 }), { issuer: ['c'] }).options.find((o) => o.id === 'c')).toMatchObject({ disabled: false, selected: true });
+  });
+
+  it('shows stand-in rows before any counts arrive', () => {
+    const section = issuers(undefined, {});
+    expect(section.options).toHaveLength(8);
+    expect(section.options.every((o) => o.placeholder && o.disabled)).toBe(true);
+    expect(section.featured).toEqual(section.options.map((o) => o.id));
+  });
+});
+
+describe('appliedCount', () => {
+  it('counts issuers, kinds, flags and the units bucket', () => {
+    expect(appliedCount({ issuer: ['a', 'b'], kind: ['etf'], is_betashares: true, units_circulating: { min: '0', max: '1' } })).toBe(5);
   });
 });

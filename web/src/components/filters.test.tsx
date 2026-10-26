@@ -10,7 +10,7 @@ const isCounts = (body: SearchIndexRequest) => !body.include?.includes('document
 const countRequests = (api: FakeApi) => api.searchIndex.mock.calls.filter(([body]) => isCounts(body));
 const resultRequests = (api: FakeApi) => api.searchIndex.mock.calls.filter(([body]) => !isCounts(body));
 const box = (name: RegExp) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
-const applyButton = () => screen.queryByRole('button', { name: /^(Show|No matching)/ }) as HTMLButtonElement | null;
+const applyButton = () => screen.queryByRole('button', { name: /^(Show (\d|results)|No matching)/ }) as HTMLButtonElement | null;
 // Fake timers only for setTimeout, so promises and Testing Library polling keep working.
 const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 // The checkbox reports its change a microtask after the click, so let it land before the clock moves.
@@ -329,6 +329,68 @@ describe('Filters', () => {
     expect(radios()).toBe(before);
   });
 
+  describe('issuer section', () => {
+    const issuerBox = (name: RegExp) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
+    const showAll = () => screen.getByRole('button', { name: /^Show all/ });
+
+    it('shows the top 8 issuers, then every issuer with a filter box after Show all', async () => {
+      await setup();
+      expect(screen.getAllByRole('checkbox', { name: /Acme|Bravo|Charlie|Delta|Echo|Foxtrot|Golf|Hotel|India|Investors/ })).toHaveLength(8);
+      expect(screen.queryByRole('checkbox', { name: /India/ })).toBeNull();
+      expect(screen.queryByLabelText('Filter issuers')).toBeNull();
+      expect(showAll().textContent).toBe('Show all 11');
+      expect(showAll().getAttribute('aria-expanded')).toBe('false');
+
+      await click(showAll());
+      expect(screen.getByRole('button', { name: 'Show fewer' }).getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getAllByRole('checkbox', { name: /Acme|Bravo|Charlie|Delta|Echo|Foxtrot|Golf|Hotel|India|Investors/ })).toHaveLength(11);
+
+      fireEvent.change(screen.getByLabelText('Filter issuers'), { target: { value: 'IND' } });
+      expect(issuerBox(/India/)).toBeTruthy();
+      expect(screen.queryByRole('checkbox', { name: /Acme/ })).toBeNull();
+
+      fireEvent.change(screen.getByLabelText('Filter issuers'), { target: { value: 'zzz' } });
+      expect(screen.getByText('No issuers match')).toBeTruthy();
+
+      await click(screen.getByRole('button', { name: 'Show fewer' }));
+      expect(screen.queryByLabelText('Filter issuers')).toBeNull();
+      expect(screen.queryByRole('checkbox', { name: /India/ })).toBeNull();
+    });
+
+    it('shows the raw slug as a hint on look-alike issuers only', async () => {
+      await setup();
+      await click(showAll());
+      expect(issuerBox(/Investors Mutual investors mutual/)).toBeTruthy();
+      expect(issuerBox(/Investors Mutual investors_mutual/)).toBeTruthy();
+      expect(issuerBox(/^Acme\s*\d*$/)).toBeTruthy();
+    });
+
+    it('matches the filter text against the raw slug too, to tell look-alikes apart', async () => {
+      await setup();
+      await click(showAll());
+      fireEvent.change(screen.getByLabelText('Filter issuers'), { target: { value: ' Investors_Mutual ' } });
+      expect(issuerBox(/investors_mutual/)).toBeTruthy();
+      expect(screen.queryByRole('checkbox', { name: /investors mutual/ })).toBeNull();
+    });
+
+    it('sends the slug in the counts request and keeps it pending until the button', async () => {
+      const api = await setup();
+      const before = resultRequests(api).length;
+
+      await click(showAll());
+      await click(issuerBox(/investors_mutual/));
+      await tick(config.countsDebounceMs + 10);
+      await tick(10);
+
+      expect(countRequests(api).at(-1)![0]).toMatchObject({ issuer: ['investors_mutual'] });
+      expect(resultRequests(api)).toHaveLength(before);
+      await click(applyButton()!);
+      await tick(10);
+      expect(resultRequests(api).at(-1)![0]).toMatchObject({ issuer: ['investors_mutual'] });
+      expect(filtersTrigger()!.textContent).toBe('Filters (1)');
+    });
+  });
+
   describe('beside the results (tablet and up)', () => {
     const mobileMatchMedia = window.matchMedia;
     beforeEach(() => {
@@ -371,6 +433,17 @@ describe('Filters', () => {
 
       expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('3 results');
       expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+    });
+
+    it('applies an issuer tick live, with its slug', async () => {
+      const api = await setup();
+      const before = resultRequests(api).length;
+
+      await click(box(/Acme/));
+      await tick(config.countsDebounceMs + 10);
+
+      expect(resultRequests(api)).toHaveLength(before + 1);
+      expect(resultRequests(api).at(-1)![0]).toMatchObject({ issuer: ['acme'] });
     });
 
     it('sends one results request for two quick ticks', async () => {

@@ -27,3 +27,15 @@ export function issuerLabel(slug: string | null): string {
     .map((word) => word[0].toUpperCase() + word.slice(1))
     .join(' ');
 }
+
+// Two slugs can share a label ("investors mutual" and "investors_mutual"); those get the raw slug as a hint so they stay tellable apart.
+export function issuerLabels(slugs: string[]): Map<string, { label: string; hint?: string }> {
+  const seen = new Map<string, number>();
+  for (const slug of slugs) seen.set(issuerLabel(slug), (seen.get(issuerLabel(slug)) ?? 0) + 1);
+  return new Map(
+    slugs.map((slug) => {
+      const label = issuerLabel(slug);
+      return [slug, seen.get(label)! > 1 ? { label, hint: slug } : { label }];
+    }),
+  );
+}

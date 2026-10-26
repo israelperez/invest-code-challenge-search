@@ -1,4 +1,6 @@
-import { Box, Button, Checkbox, Fieldset, Flex, RadioGroup, Skeleton, Text } from '@chakra-ui/react';
+import { Box, Button, Checkbox, Fieldset, Flex, Input, RadioGroup, Skeleton, Text } from '@chakra-ui/react';
+import { useId, useMemo, useState } from 'react';
+import { issuerLabels } from '../format/issuer-label';
 import { buildSearchRequest, type Filters } from '../search/build-search-request';
 import { filterSections, type FilterOption, type FilterSection } from '../search/filter-options';
 import type { useFacetCounts } from '../search/queries';
@@ -22,6 +24,74 @@ const Count = ({ option, loading }: { option: FilterOption; loading: boolean }) 
     {loading ? <Skeleton height="full" width="2ch" marginX="auto" /> : option.count}
   </Box>
 );
+
+const CheckboxRow = ({ option: o, loading, onChange, hint }: { option: FilterOption; loading: boolean; onChange: (next: Filters) => void; hint?: string }) => (
+  <Checkbox.Root checked={o.selected} disabled={o.disabled} onCheckedChange={() => onChange(o.next)} width="full">
+    <Checkbox.HiddenInput />
+    <Checkbox.Control />
+    <Checkbox.Label flex="1">
+      {o.label}
+      {/* Inside the label, so the hint is part of the accessible name. */}
+      {hint && (
+        <>
+          {' '}
+          <Text as="span" color="fg.muted">
+            {hint}
+          </Text>
+        </>
+      )}
+    </Checkbox.Label>
+    <Count option={o} loading={loading} />
+  </Checkbox.Root>
+);
+
+// The busiest issuers first; Show all expands inline (no nested scroll) to every issuer, with a filter box.
+function IssuerSection({ section, loading, onChange }: { section: FilterSection; loading: boolean; onChange: (next: Filters) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const [text, setText] = useState('');
+  const listId = useId();
+  const labels = useMemo(() => issuerLabels(section.options.filter((o) => !o.placeholder).map((o) => o.id)), [section.options]);
+  const placeholders = section.options[0]?.placeholder;
+  const needle = text.trim().toLowerCase();
+  const shown = expanded
+    ? section.options.filter((o) => o.label.toLowerCase().includes(needle) || o.id.toLowerCase().includes(needle))
+    : section.featured!.map((id) => section.options.find((o) => o.id === id)!);
+  return (
+    <Fieldset.Root>
+      <Fieldset.Legend>{section.legend}</Fieldset.Legend>
+      <Fieldset.Content gap="2" paddingStart="4">
+        {expanded && <Input size="sm" aria-label="Filter issuers" value={text} onChange={(e) => setText(e.target.value)} />}
+        <Flex direction="column" gap="2" id={listId}>
+          {shown.map((o) =>
+            o.placeholder ? (
+              <Skeleton key={o.id} height={ROW_HEIGHT} aria-hidden />
+            ) : (
+              <CheckboxRow key={o.id} option={o} loading={loading} onChange={onChange} hint={labels.get(o.id)?.hint} />
+            ),
+          )}
+          {expanded && shown.length === 0 && <Text fontSize="sm" color="fg.muted">No issuers match</Text>}
+        </Flex>
+        {!placeholders && (
+          // Fixed width, so the label change never resizes it.
+          <Button
+            variant="outline"
+            size="xs"
+            width="28"
+            alignSelf="flex-start"
+            aria-expanded={expanded}
+            aria-controls={listId}
+            onClick={() => {
+              setExpanded(!expanded);
+              setText('');
+            }}
+          >
+            {expanded ? 'Show fewer' : `Show all ${section.options.length}`}
+          </Button>
+        )}
+      </Fieldset.Content>
+    </Fieldset.Root>
+  );
+}
 
 function Section({ section, loading, onChange }: { section: FilterSection; loading: boolean; onChange: (next: Filters) => void }) {
   // A lone checkbox is labelled by its own text, so its legend is for assistive tech only.
@@ -52,14 +122,7 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
             </Flex>
           </RadioGroup.Root>
         ) : (
-          section.options.map((o) => (
-            <Checkbox.Root key={o.id} checked={o.selected} disabled={o.disabled} onCheckedChange={() => onChange(o.next)} width="full">
-              <Checkbox.HiddenInput />
-              <Checkbox.Control />
-              <Checkbox.Label flex="1">{o.label}</Checkbox.Label>
-              <Count option={o} loading={loading} />
-            </Checkbox.Root>
-          ))
+          section.options.map((o) => <CheckboxRow key={o.id} option={o} loading={loading} onChange={onChange} />)
         )}
       </Fieldset.Content>
     </Fieldset.Root>
@@ -91,9 +154,13 @@ export function FilterPanel({
           </Button>
         </Flex>
       )}
-      {filterSections(facets, pending, known).map((section) => (
-        <Section key={section.id} section={section} loading={loading} onChange={onPendingChange} />
-      ))}
+      {filterSections(facets, pending, known).map((section) =>
+        section.featured ? (
+          <IssuerSection key={section.id} section={section} loading={loading} onChange={onPendingChange} />
+        ) : (
+          <Section key={section.id} section={section} loading={loading} onChange={onPendingChange} />
+        ),
+      )}
     </Flex>
   );
 }
