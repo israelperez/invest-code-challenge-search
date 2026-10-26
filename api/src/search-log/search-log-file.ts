@@ -64,14 +64,17 @@ export function createPersistentSearchLog({ file, loadSeed, ...deps }: Persisten
   let saving = false;
   let timer: NodeJS.Timeout | undefined;
 
-  const flush = () => {
+  // False only when a save was attempted and failed; callers that ignore the result are unaffected.
+  const flush = (): boolean => {
     clearTimeout(timer);
     timer = undefined;
-    if (!saving) return;
+    if (!saving) return true;
     try {
       writeSnapshot(file, searchLog.snapshot());
+      return true;
     } catch {
       devLog('search-log.save-failed');
+      return false;
     }
   };
   const searchLog = new SearchLog({

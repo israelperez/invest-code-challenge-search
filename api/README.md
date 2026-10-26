@@ -238,6 +238,19 @@ curl 'localhost:8787/insights/zero-results'
 - The history is demo data, the same seeded log as popular searches. `includes_seed_data` is always `true`.
 - It lives in `src/insights/`, with its own flag, so removing the folder and its registration in `src/app.ts` leaves the rest untouched.
 
+## Reset popular searches
+
+`DELETE /search-log` empties the search log (Clear popular searches) and `POST /search-log/restore-seed` replaces it with the history in `data/popular-seed.json` (Restore demo popular searches). Both answer `204`, save the log file straight away and take no query parameters or body fields (anything else returns `400`).
+
+```bash
+curl -X DELETE localhost:8787/search-log                 # popular searches and insights are now empty
+curl -X POST localhost:8787/search-log/restore-seed      # the seed is back, counted against the current instruments
+```
+
+- Development only, demo-grade and unauthenticated: anyone who can reach the API can wipe its log. They share the `ENABLE_INSIGHTS=true` flag, which guards every development-only admin route, and otherwise answer `404`. They are admin-only in production: a real build would put them behind admin authentication.
+- Both also forget remembered submission IDs and result counts. Restore builds the seed first, so if counting fails the old history stays.
+- They live in `src/search-log-admin/`, so removing the folder and its registration in `src/app.ts` leaves the rest untouched.
+
 ## Errors
 
 An invalid body returns `400` with a reason, e.g. `{ "message": "kind must be an array of strings" }`. An unknown instrument returns `404 { "message": "Instrument not found: XYZ:AU" }`.

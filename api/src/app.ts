@@ -17,6 +17,8 @@ import {
 } from './index';
 import { InsightsController } from './insights/insights.controller';
 import { initInsightsModule } from './insights/module';
+import { SearchLogAdminController } from './search-log-admin/search-log-admin.controller';
+import { initSearchLogAdminModule } from './search-log-admin/module';
 import { SearchLog } from './search-log/search-log';
 import { HealthController } from './health/health.controller';
 import { EnvVarsConfig, envConfig } from './shared/configs/env.config';
@@ -76,9 +78,11 @@ interface AppControllers {
   popularController: PopularController;
   // Undefined when the enableInsights flag is off, so the route 404s.
   insightsController?: InsightsController;
+  // Undefined when the enableInsights flag is off, so the routes 404.
+  searchLogAdminController?: SearchLogAdminController;
   instrumentsBatchController: InstrumentsBatchController;
   facetsController: FacetsController;
-  flushSearchLog: () => void;
+  flushSearchLog: () => boolean;
 }
 
 function initAppModules(
@@ -107,6 +111,10 @@ function initAppModules(
   const insightsController = enableInsights
     ? initInsightsModule(log, ready).insightsController
     : undefined;
+  const searchLogAdminController = enableInsights
+    ? initSearchLogAdminModule(log, ready, flushSearchLog)
+        .searchLogAdminController
+    : undefined;
 
   return {
     healthController,
@@ -115,6 +123,7 @@ function initAppModules(
     searchLogController,
     popularController,
     insightsController,
+    searchLogAdminController,
     instrumentsBatchController,
     facetsController,
     flushSearchLog,
@@ -134,6 +143,9 @@ function registerAppRoutes(app: Koa, controllers: AppControllers) {
     controllers.popularController.getRouter(),
     ...(controllers.insightsController
       ? [controllers.insightsController.getRouter()]
+      : []),
+    ...(controllers.searchLogAdminController
+      ? [controllers.searchLogAdminController.getRouter()]
       : []),
     controllers.facetsController.getRouter(),
   ];
