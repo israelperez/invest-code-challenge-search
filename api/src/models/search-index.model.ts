@@ -1,4 +1,5 @@
 import { InstrumentDocument } from './instrument.model';
+import { IndexFacets } from '../services/index-facets';
 import { InstrumentSearchQuery } from './search-query.model';
 
 export const INCLUDE_VALUES = ['count', 'facets', 'ids', 'documents'] as const;
@@ -37,6 +38,8 @@ export interface SearchIndexResponse {
   indexed_at: number;
   // Total matches before the id window.
   count?: number;
+  // Options and counts for all 7 facet keys, each ignoring only its own filter.
+  facets?: IndexFacets;
   // Ordered symbol_openfigi values of the window.
   ids?: string[];
   // null when no ids remain after the window.

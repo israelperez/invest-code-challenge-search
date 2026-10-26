@@ -61,7 +61,8 @@ describe('POST /search/index include', () => {
     expect(
       res.body.documents.map((d: InstrumentDocument) => d.symbol_openfigi),
     ).toEqual(ids.slice(0, 15));
-    expect(res.body).not.toHaveProperty('facets');
+    expect(res.body.facets).toBeDefined();
+    expect(Object.keys(res.body.facets)).toHaveLength(7);
   });
 
   it.each([
@@ -79,8 +80,11 @@ describe('POST /search/index include', () => {
       ['count', 'ids', 'documents'],
       ['count', 'documents', 'ids', 'next_id_offset'],
     ],
-    [['count', 'facets'], ['count']],
-    [['facets'], []],
+    [
+      ['count', 'facets'],
+      ['count', 'facets'],
+    ],
+    [['facets'], ['facets']],
     [[], []],
   ])('include %j returns only %j plus indexed_at', async (include, keys) => {
     const res = await post({ include });
