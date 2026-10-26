@@ -60,7 +60,7 @@ The input and its combobox popup. One body of work: shares the input, keyboard h
 - [ ] **MVP** `SuggestionSource` seam; adapter uses `/facets/issuer` + `/search?fields=` in parallel. A real build swaps in a `/suggest` endpoint
 - [ ] **MVP** A **search** (Enter, suggestion, popular pill, recent search) applies immediately and keeps the applied filters; un-applied filter ticks are discarded
 - [ ] **Extra** **Recent searches**: last 5, case-insensitive dedupe, newest first, removable, saved when the search request fires (even if it returns zero or errors), `RecentSearchStore` seam over localStorage, updated in memory during the session
-- [ ] **Extra** Empty focused input shows recent searches (or a short hint if none); at 3+ characters, matching recent searches lead the suggestions
+- [ ] **Extra** Empty focused input shows recent searches (or a short hint if none); at 1–2 characters, only those starting with the typed text; from 3 characters, suggestions replace them
 
 ## 5. Popular searches
 
