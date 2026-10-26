@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { config } from '../config';
 import { issuerLabel } from '../format/issuer-label';
 import type { Filters } from './build-search-request';
 import { appliedChips, appliedCount, applyLabel, bucketLabel, filterSections, UNIT_BUCKET_ROWS, type Facets } from './filter-options';
@@ -43,13 +44,13 @@ const summary = (id: string, filters = {}) =>
 describe('filterSections', () => {
   it('lists the sections in order', () => {
     expect(filterSections(facets, {}).map((s) => s.legend)).toEqual([
-      'Type',
-      'Issuer',
       'Betashares funds only',
       'Flagship funds',
       'Available for Auto Invest',
-      'Portfolio eligible only',
+      'Type',
+      'Issuer',
       'Shares issued (stocks only)',
+      'Portfolio eligible only',
     ]);
   });
 
@@ -102,7 +103,7 @@ describe('filterSections', () => {
   });
 
   it('still lists the known options before any counts arrive', () => {
-    const [kind, , , , , , units] = filterSections(undefined, {});
+    const [, , , kind, , units] = filterSections(undefined, {});
     expect(kind.options.map((o) => [o.label, o.count, o.disabled])).toEqual([
       ['ETFs', undefined, false],
       ['Stocks', undefined, false],
@@ -156,6 +157,11 @@ describe('issuer section', () => {
     expect(options.map((o) => o.id)).toEqual(slugs.slice().sort((x, y) => issuerLabel(x).localeCompare(issuerLabel(y)) || x.localeCompare(y)));
     expect(options.map((o) => o.id)).toContain('i ');
     expect(options.filter((o) => o.label === 'Investors Mutual')).toHaveLength(2);
+  });
+
+  it('features as many issuers as config.featuredIssuers', () => {
+    expect(config.featuredIssuers).toBe(8);
+    expect(issuers(issuerFacets()).featured).toHaveLength(config.featuredIssuers);
   });
 
   it('features the top 8 by count, then label, then slug', () => {
@@ -216,13 +222,13 @@ describe('appliedChips', () => {
 
   it('has one chip per value in panel order, labelled without the raw slug', () => {
     expect(appliedChips(all, known).map((c) => c.label)).toEqual([
+      'Betashares funds only',
       'ETFs',
       'Stocks',
       'Investors Mutual',
       'Vanguard',
-      'Betashares funds only',
-      'Portfolio eligible only',
       'Shares issued: 1 to 5 billion',
+      'Portfolio eligible only',
     ]);
   });
 

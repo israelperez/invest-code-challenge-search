@@ -15,4 +15,6 @@ export const config = {
   countsDebounceMs: 150,
   // Placeholder rows shown while a new search loads.
   skeletonRows: 5,
+  // Issuers shown before "Show all"; the rest are one click away.
+  featuredIssuers: 8,
 } as const;

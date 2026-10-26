@@ -1,4 +1,5 @@
 import type { FacetEntry } from '../api/types';
+import { config } from '../config';
 import { issuerLabel } from '../format/issuer-label';
 import type { Filters } from './build-search-request';
 
@@ -29,17 +30,16 @@ export type FilterSection = {
 // Matches the API's configured units_circulating buckets; the real rows replace these once the counts arrive.
 export const UNIT_BUCKET_ROWS = 5;
 
-// How many issuers show before "Show all".
-export const FEATURED_ISSUERS = 8;
-
 const KIND_LABELS: Record<string, string> = { etf: 'ETFs', equity: 'Stocks' };
 
-const FLAGS = [
+// Shown before Type; portfolio eligibility is shown last.
+const BETASHARES_FLAGS = [
   { key: 'is_betashares', label: 'Betashares funds only', value: true },
   { key: 'is_flagship_fund', label: 'Flagship funds', value: true },
   { key: 'is_auto_invest_included', label: 'Available for Auto Invest', value: true },
-  { key: 'is_portfolio_excluded', label: 'Portfolio eligible only', value: false },
 ] as const;
+const PORTFOLIO_FLAG = { key: 'is_portfolio_excluded', label: 'Portfolio eligible only', value: false } as const;
+const FLAGS = [...BETASHARES_FLAGS, PORTFOLIO_FLAG] as const;
 
 const countOf = (facets: Facets | undefined, key: string, value: string) =>
   facets?.[key]?.find((entry) => entry.value === value)?.count;
@@ -92,10 +92,12 @@ export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
   const buckets = (known?.units_circulating ?? []).map((e) => e.value);
   const { units_circulating: units } = filters;
   const bucket = units ? buckets.findIndex((value) => value === `${units.min},${units.max}`) : -1;
+  const flagChips = (flags: readonly (typeof FLAGS)[number][]) =>
+    flags.filter(({ key, value }) => filters[key] === value).map(({ key, label }) => ({ id: key, label, next: without(filters, key) }));
   return [
+    ...flagChips(BETASHARES_FLAGS),
     ...kinds.map((kind) => ({ id: `kind:${kind}`, label: KIND_LABELS[kind] ?? kind, next: drop('kind', kind) })),
     ...[...chosenIssuers].sort(byLabel).map((slug) => ({ id: `issuer:${slug}`, label: issuerLabel(slug), next: drop('issuer', slug) })),
-    ...FLAGS.filter(({ key, value }) => filters[key] === value).map(({ key, label }) => ({ id: key, label, next: without(filters, key) })),
     ...(units
       ? [
           {
@@ -106,6 +108,7 @@ export function appliedChips(filters: Filters, known?: Facets): AppliedChip[] {
           },
         ]
       : []),
+    ...flagChips([PORTFOLIO_FLAG]),
   ];
 }
 
@@ -136,19 +139,19 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
   });
   const topIssuers = [...(known?.issuer ?? [])]
     .sort((a, b) => b.count - a.count || byLabel(a.value, b.value))
-    .slice(0, FEATURED_ISSUERS)
+    .slice(0, config.featuredIssuers)
     .map((e) => e.value);
   const featured = [...topIssuers, ...chosenIssuers.filter((slug) => issuerSlugs.includes(slug) && !topIssuers.includes(slug))];
-  const issuerStandIns = Array.from({ length: FEATURED_ISSUERS }, (_, i) => ({ ...option(`placeholder-${i}`, '', undefined, false, filters), placeholder: true, disabled: true }));
+  const issuerStandIns = Array.from({ length: config.featuredIssuers }, (_, i) => ({ ...option(`placeholder-${i}`, '', undefined, false, filters), placeholder: true, disabled: true }));
   const issuerSection: FilterSection = issuerSlugs.length
     ? { id: 'issuer', legend: 'Issuer', control: 'checkbox', options: issuerOptions, featured }
     : { id: 'issuer', legend: 'Issuer', control: 'checkbox', options: issuerStandIns, featured: issuerStandIns.map((o) => o.id) };
 
-  const flagSections = FLAGS.map(({ key, label, value }): FilterSection => {
+  const flagSection = ({ key, label, value }: (typeof FLAGS)[number]): FilterSection => {
     const selected = filters[key] === value;
     const next = selected ? without(filters, key) : { ...filters, [key]: value };
     return { id: key, legend: label, control: 'checkbox', options: [option(key, label, countOf(facets, key, String(value)), selected, next)] };
-  });
+  };
 
   const buckets = (known?.units_circulating ?? []).map((e) => e.value);
   const current = filters.units_circulating;
@@ -174,5 +177,5 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
     ],
   };
 
-  return [kindSection, issuerSection, ...flagSections, unitsSection];
+  return [...BETASHARES_FLAGS.map(flagSection), kindSection, issuerSection, unitsSection, flagSection(PORTFOLIO_FLAG)];
 }
