@@ -139,21 +139,18 @@ describe('Suggestions list', () => {
     expect(input().value).toBe('');
   });
 
-  it('closes on Tab and on blur, keeping the typed text', async () => {
+  it('closes when focus moves to the Search button, as Tab does, and leaves it there', async () => {
     await open();
-    await key('Tab');
-    act(() => input().blur());
+    const button = screen.getByRole('button', { name: 'Search' });
+    act(() => button.focus());
     await tick(0);
+    // Zag refocuses the input on the next animation frame unless the close was a focus-outside one.
+    await act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    await tick(0);
+
     expect(expanded()).toBe('false');
     expect(input().value).toBe('glo');
-
-    act(() => input().focus());
-    fireEvent.change(input(), { target: { value: 'glob' } });
-    await tick(config.suggestionDebounceMs + 10);
-    expect(expanded()).toBe('true');
-    act(() => input().blur());
-    await tick(0);
-    expect(expanded()).toBe('false');
+    expect(document.activeElement).toBe(button);
   });
 
   it('announces loading, then the number of suggestions, in a polite live region', async () => {

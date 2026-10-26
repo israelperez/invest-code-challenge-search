@@ -42,7 +42,7 @@ export function useVersion() {
 
 // `state` null = nothing submitted yet. Waits for the version so the key carries a settled indexed_at.
 export function useSearchIndex(state: SearchState | null) {
-  const { source } = useSearchBackend();
+  const { source, report } = useSearchBackend();
   const queryClient = useQueryClient();
   const version = useVersion();
   const request = state ? buildSearchRequest(state) : null;
@@ -50,7 +50,7 @@ export function useSearchIndex(state: SearchState | null) {
     queryKey: searchKey(version.data?.indexed_at ?? null, request),
     queryFn: ({ signal }) =>
       source.loadFirst(state!, signal).catch((error: unknown) => {
-        if (!signal.aborted) console.error('Loading the first batch failed', error);
+        if (!signal.aborted) report('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: error });
         throw error;
       }),
     enabled: request !== null && !version.isPending,
@@ -68,7 +68,7 @@ export function useSearchIndex(state: SearchState | null) {
 // After a 409: forget the session's fetches and reload the first batch without blanking the results.
 // The new first batch is cached under the current and the post-restart key, so neither shows a skeleton.
 export function useRestartSearch(state: SearchState) {
-  const { source } = useSearchBackend();
+  const { source, report } = useSearchBackend();
   const queryClient = useQueryClient();
   const version = useVersion();
   const request = buildSearchRequest(state);

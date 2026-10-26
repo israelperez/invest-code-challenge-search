@@ -2,6 +2,7 @@ import { ApiError, type ApiClient } from '../api/client';
 import type { InstrumentDocument, SearchIndexResponse } from '../api/types';
 import { buildSearchRequest, type SearchState } from './build-search-request';
 import { planHydration } from './hydration-planner';
+import { consoleReport, type Report } from './report';
 
 // The API says the snapshot no longer matches: it restarted on new data. indexed_at is the new value.
 export class SnapshotStaleError extends Error {
@@ -17,7 +18,7 @@ export type SearchSource = ReturnType<typeof createSearchSource>;
 // Owns what has been fetched: the document store and, per search state, the ID windows loaded so far.
 export function createSearchSource(
   api: Pick<ApiClient, 'searchIndex' | 'instrumentsBatch'>,
-  { documentLimit, orphanSize, idLimit }: { documentLimit: number; orphanSize: number; idLimit: number },
+  { documentLimit, orphanSize, idLimit, report = consoleReport }: { documentLimit: number; orphanSize: number; idLimit: number; report?: Report },
 ) {
   const store = new Map<string, InstrumentDocument>();
   const index = new Map<string, IndexEntry>();
@@ -29,7 +30,7 @@ export function createSearchSource(
   function assertCurrent(startedIn: number, signal?: AbortSignal) {
     signal?.throwIfAborted();
     if (startedIn !== generation) {
-      console.warn('Discarded a response that arrived after the search source was reset');
+      report('late_response_discarded', { level: 'warn', message: 'Discarded a response that arrived after the search source was reset' });
       throw new SnapshotStaleError(undefined);
     }
   }
@@ -108,9 +109,12 @@ export function createSearchSource(
       assertCurrent(startedIn, signal);
       const reported = new Set([...batch.documents.map((d) => d.symbol_openfigi), ...batch.missing].map((id) => id.toUpperCase()));
       const unreported = missingIds.filter((id) => !reported.has(id.toUpperCase()));
-      if (unreported.length > 0) throw new Error(`Batch response omitted requested IDs: ${unreported.join(', ')}`);
+      if (unreported.length > 0) {
+        report('batch_incomplete', { level: 'error', message: 'Batch response omitted requested IDs', detail: unreported });
+        throw new Error(`Batch response omitted requested IDs: ${unreported.join(', ')}`);
+      }
       for (const document of batch.documents) store.set(document.symbol_openfigi, document);
-      if (batch.missing.length > 0) console.warn('Instruments missing from the batch response, skipped:', batch.missing);
+      if (batch.missing.length > 0) report('batch_ids_missing', { level: 'warn', message: 'Instruments missing from the batch response, skipped:', detail: batch.missing });
     }
 
     return {

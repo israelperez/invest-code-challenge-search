@@ -140,7 +140,7 @@ function LoadedResults({
   stale: boolean;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
-  const { source } = useSearchBackend();
+  const { source, report } = useSearchBackend();
   const restart = useRestartSearch(state);
   const [stored, setProgress] = useState(() => startProgress(data));
   const [announcement, setAnnouncement] = useState('');
@@ -179,7 +179,7 @@ function LoadedResults({
     } catch (error) {
       if (signal.aborted) return;
       if (error instanceof SnapshotStaleError) {
-        console.warn('Snapshot is stale, restarting from the first batch');
+        report('snapshot_stale', { level: 'warn', message: 'Snapshot is stale, restarting from the first batch' });
         try {
           await restart(signal);
           if (signal.aborted) return;
@@ -188,10 +188,10 @@ function LoadedResults({
           return;
         } catch (restartError) {
           if (signal.aborted) return;
-          console.error('Restarting after a stale snapshot failed', restartError);
+          report('restart_failed', { level: 'error', message: 'Restarting after a stale snapshot failed', detail: restartError });
         }
       } else {
-        console.error('Loading more results failed', error);
+        report('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: error });
       }
       setProgress({ ...progress, status: 'error' });
     }

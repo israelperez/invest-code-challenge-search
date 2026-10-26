@@ -58,8 +58,7 @@ describe('Load more', () => {
 
   it('skips IDs the batch reports missing, logs them, and still moves past them', async () => {
     const api = fakeApi();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    renderApp(api);
+    const { report } = renderApp(api);
     await search('a');
 
     const ids = catalogues.a.slice(18, 30);
@@ -73,7 +72,7 @@ describe('Load more', () => {
 
     expect(rows()).toHaveLength(28);
     expect(status().textContent).toBe('13 more loaded, showing 28 of 834');
-    expect(warn).toHaveBeenCalledWith(expect.any(String), missing);
+    expect(report).toHaveBeenCalledWith('batch_ids_missing', { level: 'warn', message: expect.any(String), detail: missing });
 
     await clickLoadMore();
     expect(api.instrumentsBatch.mock.calls[1][0].ids).toEqual(catalogues.a.slice(30, 45));
@@ -81,13 +80,12 @@ describe('Load more', () => {
 
   it('keeps the rows on failure, shows an inline error with Retry, and recovers on Retry', async () => {
     const api = fakeApi();
-    renderApp(api);
+    const { report } = renderApp(api);
     await search('a');
 
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     api.instrumentsBatch.mockRejectedValueOnce(new ApiError(500, 'boom'));
     await clickLoadMore();
-    expect(error).toHaveBeenCalledWith('Loading more results failed', expect.objectContaining({ status: 500 }));
+    expect(report).toHaveBeenCalledWith('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: expect.objectContaining({ status: 500 }) });
 
     expect(rows()).toHaveLength(15);
     expect(loadMoreButton()).toBeNull();
@@ -168,14 +166,13 @@ describe('Load more', () => {
 
   it('on a 409 reloads the first batch in place, focuses the heading and announces the refresh', async () => {
     const api = fakeApi();
-    renderApp(api);
+    const { report } = renderApp(api);
     await search('a');
     await clickLoadMore();
     expect(rows()).toHaveLength(30);
 
     // The API restarts on new data: the next batch call is stale and the first batch comes back as v2.
     fake.indexedAt = 2;
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     api.instrumentsBatch.mockRejectedValueOnce(new ApiError(409, 'stale', { indexed_at: 2 }));
     const reload = deferred<Awaited<ReturnType<FakeApi['searchIndex']>>>();
     api.searchIndex.mockReturnValueOnce(reload.promise);
@@ -195,13 +192,24 @@ describe('Load more', () => {
     expect(rows()[0].textContent).toContain('v2');
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2 }));
     expect(loadMoreButton()).toBeTruthy();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('restarting'));
+    expect(report).toHaveBeenCalledWith('snapshot_stale', { level: 'warn', message: expect.stringContaining('restarting') });
+  });
+
+  it('reports restart_failed when reloading after a stale snapshot fails', async () => {
+    const api = fakeApi();
+    const { report } = renderApp(api);
+    await search('a');
+    api.instrumentsBatch.mockRejectedValueOnce(new ApiError(409, 'stale', { indexed_at: 2 }));
+    api.searchIndex.mockRejectedValueOnce(new ApiError(500, 'boom'));
+    await clickLoadMore();
+
+    await waitFor(() => expect(report).toHaveBeenCalledWith('restart_failed', { level: 'error', message: expect.any(String), detail: expect.objectContaining({ status: 500 }) }));
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
   it('logs and shows the retry state when the batch response leaves a requested ID unaccounted for', async () => {
     const api = fakeApi();
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    renderApp(api);
+    const { report } = renderApp(api);
     await search('a');
     const ids = catalogues.a.slice(18, 30);
     api.instrumentsBatch.mockResolvedValueOnce({ documents: ids.slice(1).map(doc), missing: [], indexed_at: 1 });
@@ -209,26 +217,27 @@ describe('Load more', () => {
 
     expect(rows()).toHaveLength(15);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
-    expect(error).toHaveBeenCalledWith(
-      'Loading more results failed',
-      expect.objectContaining({ message: expect.stringContaining(ids[0]) }),
-    );
+    expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: expect.arrayContaining([ids[0]]) });
+    expect(report).toHaveBeenCalledWith('load_more_failed', {
+      level: 'error',
+      message: 'Loading more results failed',
+      detail: expect.objectContaining({ message: expect.stringContaining(ids[0]) }),
+    });
   });
 
   it('logs when the first batch fails', async () => {
     const api = fakeApi();
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Only the results request fails; the filter counts request runs alongside it.
     const base = api.searchIndex.getMockImplementation()!;
     api.searchIndex.mockImplementation(async (body, signal) => {
       if (body.include?.includes('documents')) throw new ApiError(500, 'boom');
       return base(body, signal);
     });
-    renderApp(api);
+    const { report } = renderApp(api);
     fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await screen.findByText('Something went wrong');
-    expect(error).toHaveBeenCalledWith('Loading the first batch failed', expect.objectContaining({ status: 500 }));
+    expect(report).toHaveBeenCalledWith('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: expect.objectContaining({ status: 500 }) });
   });
 });

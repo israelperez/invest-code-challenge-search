@@ -60,6 +60,22 @@ describe('Recent searches popup', () => {
     expect(options()).toEqual(['A200', 'Vanguard']);
   });
 
+  it('closes when focus moves to the Search button, as Tab does, and leaves it there', async () => {
+    setup(['A200']);
+    await focus();
+    expect(expanded()).toBe('true');
+
+    const button = screen.getByRole('button', { name: 'Search' });
+    act(() => button.focus());
+    await tick(0);
+    // Zag refocuses the input on the next animation frame unless the close was a focus-outside one.
+    await act(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    await tick(0);
+
+    expect(expanded()).toBe('false');
+    expect(document.activeElement).toBe(button);
+  });
+
   it('shows a hint when there are none', async () => {
     setup();
     await focus();

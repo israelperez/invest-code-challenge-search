@@ -35,16 +35,16 @@ function fakeApi() {
 describe('SearchSource after reset', () => {
   it('a first load resolving after reset writes nothing', async () => {
     const api = fakeApi();
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const report = vi.fn();
     const late = deferred<SearchIndexResponse>();
     api.searchIndex.mockReturnValueOnce(late.promise);
-    const source = createSearchSource(api, options);
+    const source = createSearchSource(api, { ...options, report });
 
     const loading = source.loadFirst(state).catch((e: unknown) => e);
     source.reset();
     late.resolve({ indexed_at: 1, count: 5, ids: ids.slice(0, 3), next_id_offset: 3, documents: [{ ...doc('A:AU'), display_name: 'stale' }] });
     expect(await loading).toBeInstanceOf(SnapshotStaleError);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('after the search source was reset'));
+    expect(report).toHaveBeenCalledWith('late_response_discarded', { level: 'warn', message: expect.stringContaining('after the search source was reset') });
 
     // Empty index and store: loadMore fetches the first window again, and the stale document is gone.
     const batch = await source.loadMore(state, 0);
@@ -113,15 +113,32 @@ describe('SearchSource after reset', () => {
 describe('SearchSource incomplete batch', () => {
   it('throws when a requested ID is neither returned nor reported missing, leaving the store untouched', async () => {
     const api = fakeApi();
-    const source = createSearchSource(api, options);
+    const report = vi.fn();
+    const source = createSearchSource(api, { ...options, report });
     await source.loadFirst(state);
     api.instrumentsBatch.mockResolvedValueOnce({ documents: [doc('C:AU')], missing: [], indexed_at: 1 });
 
     await expect(source.loadMore(state, 2)).rejects.toThrow(/D:AU/);
+    expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: ['D:AU'] });
 
     api.instrumentsBatch.mockClear();
     const retry = await source.loadMore(state, 2);
     expect(api.instrumentsBatch.mock.calls[0][0].ids).toEqual(['C:AU', 'D:AU']);
     expect(retry.consumed).toBe(4);
+  });
+});
+
+describe('SearchSource missing IDs', () => {
+  it('reports the IDs the batch says are missing and skips them', async () => {
+    const api = fakeApi();
+    const report = vi.fn();
+    const source = createSearchSource(api, { ...options, report });
+    await source.loadFirst(state);
+    api.instrumentsBatch.mockResolvedValueOnce({ documents: [doc('C:AU')], missing: ['D:AU'], indexed_at: 1 });
+
+    const batch = await source.loadMore(state, 2);
+
+    expect(batch.documents.map((d) => d.symbol_openfigi)).toEqual(['C:AU']);
+    expect(report).toHaveBeenCalledWith('batch_ids_missing', { level: 'warn', message: expect.any(String), detail: ['D:AU'] });
   });
 });

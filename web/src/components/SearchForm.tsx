@@ -1,5 +1,6 @@
 import { Box, Button, CloseButton, Combobox, Field, Flex, Input, Skeleton, Text, VisuallyHidden, createListCollection, useBreakpointValue } from '@chakra-ui/react';
 import { type FormEvent, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import type { SearchTrigger } from '../analytics/analytics';
 import { config } from '../config';
 import { PopularPills } from './PopularPills';
 import { useSearchBackend } from '../search/search-source-context';
@@ -29,8 +30,8 @@ const noTerms: readonly string[] = [];
 // Fixed-size controls: the clear button is hidden, never removed, so nothing reflows while typing.
 // The list is a popover over the page, so opening it moves nothing either.
 // The popular searches show only before the first search; the results take their place.
-export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string) => void; showPopular: boolean }) {
-  const { suggestions, recent } = useSearchBackend();
+export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string, source: SearchTrigger) => void; showPopular: boolean }) {
+  const { suggestions, recent, analytics } = useSearchBackend();
   const inputId = useId();
   const listLabelId = `${inputId}-suggestions`;
   const [value, setValue] = useState('');
@@ -92,7 +93,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
   function submit(event: FormEvent) {
     event.preventDefault();
     setWantOpen(false);
-    onSearch(value);
+    onSearch(value, 'typed');
   }
 
   function change(text: string) {
@@ -120,7 +121,10 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
               if (!picked) return;
               change(picked.fill);
               setWantOpen(false);
-              onSearch(picked.fill);
+              // A recent pick re-runs a past search; it is not a suggestion.
+              if (picked.value.startsWith('recent:')) return onSearch(picked.fill, 'recent');
+              analytics.track('suggestion_selected', { query: typed, value: picked.fill, kind: picked.value.startsWith('term:') ? 'term' : 'instrument' });
+              onSearch(picked.fill, 'suggestion');
             }}
             // Below tablet the list spans the whole row (input and Search button); from tablet up it matches the input.
             positioning={{ sameWidth: true, getAnchorRect: tablet ? undefined : () => rowRef.current?.getBoundingClientRect() ?? null }}
@@ -138,7 +142,6 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
                   // The combobox reports its value a tick late; a submit or the debounce must not wait for it.
                   onChange={(e) => change(e.target.value)}
                   onFocus={() => recent && setWantOpen(true)}
-                  onBlur={() => setWantOpen(false)}
                   onKeyDown={(e) => {
                     // A second Escape, with the list already closed, clears the input.
                     if (e.key === 'Escape' && !open) change('');
@@ -215,7 +218,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string)
           onPick={(term) => {
             change(term);
             setWantOpen(false);
-            onSearch(term);
+            onSearch(term, 'popular');
           }}
         />
       )}
