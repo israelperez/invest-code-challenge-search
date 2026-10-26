@@ -12,7 +12,8 @@ export {
 export { SearchController } from './controllers/search.controller';
 export { SearchIndexController } from './controllers/search-index.controller';
 export { InstrumentsBatchController } from './controllers/instruments-batch.controller';
+export { SearchLogController } from './controllers/search-log.controller';
 export { FacetsController } from './controllers/facets.controller';
 
 // Expose module init.
-export { initSearchModule } from './module';
+export { initSearchModule, initSearchLogModule } from './module';

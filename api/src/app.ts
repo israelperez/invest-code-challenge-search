@@ -10,8 +10,11 @@ import {
   JsonInstrumentsRepository,
   SearchController,
   SearchIndexController,
+  SearchLogController,
+  initSearchLogModule,
   initSearchModule,
 } from './index';
+import { SearchLog } from './search-log/search-log';
 import { HealthController } from './health/health.controller';
 import { EnvVarsConfig, envConfig } from './shared/configs/env.config';
 import { errorMiddleware } from './shared/middleware/error.middleware';
@@ -23,6 +26,7 @@ import { notFoundMiddleware } from './shared/middleware/not-found.middleware';
 export interface AppDeps {
   repository?: InstrumentsRepository;
   clock?: () => number;
+  searchLog?: SearchLog;
   config?: EnvVarsConfig;
 }
 
@@ -31,8 +35,9 @@ export interface AppDeps {
  */
 export function createApp({
   repository = new JsonInstrumentsRepository(envConfig.instrumentsFile),
-  // Clock and config have no consumers yet.
   clock = () => Date.now(),
+  searchLog,
+  // Config has no consumers yet.
   config = envConfig,
 }: AppDeps = {}): Koa {
   const app = new Koa();
@@ -41,7 +46,11 @@ export function createApp({
   registerAppMiddleware(app);
 
   // Initialise app modules and their controllers.
-  const controllers: AppControllers = initAppModules(repository);
+  const controllers: AppControllers = initAppModules(
+    repository,
+    clock,
+    searchLog,
+  );
 
   // Register app routes with controllers.
   registerAppRoutes(app, controllers);
@@ -56,24 +65,36 @@ interface AppControllers {
   healthController: HealthController;
   searchController: SearchController;
   searchIndexController: SearchIndexController;
+  searchLogController: SearchLogController;
   instrumentsBatchController: InstrumentsBatchController;
   facetsController: FacetsController;
 }
 
-function initAppModules(repository: InstrumentsRepository): AppControllers {
+function initAppModules(
+  repository: InstrumentsRepository,
+  clock: () => number,
+  searchLog?: SearchLog,
+): AppControllers {
   const healthController = new HealthController();
 
   const {
+    searchService,
     searchController,
     searchIndexController,
     instrumentsBatchController,
     facetsController,
   } = initSearchModule(repository);
+  const searchLogController = initSearchLogModule(
+    searchService,
+    clock,
+    searchLog,
+  );
 
   return {
     healthController,
     searchController,
     searchIndexController,
+    searchLogController,
     instrumentsBatchController,
     facetsController,
   };
@@ -88,6 +109,7 @@ function registerAppRoutes(app: Koa, controllers: AppControllers) {
     controllers.searchController.getRouter(),
     controllers.instrumentsBatchController.getRouter(),
     controllers.searchIndexController.getRouter(),
+    controllers.searchLogController.getRouter(),
     controllers.facetsController.getRouter(),
   ];
 
