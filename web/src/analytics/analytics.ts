@@ -6,7 +6,7 @@ export type SearchTrigger = 'typed' | 'suggestion' | 'popular' | 'recent';
 export type ProductEvents = {
   search_submitted: { term: string; source: SearchTrigger };
   suggestion_selected: { query: string; value: string; kind: 'term' | 'instrument' };
-  search_zero_results: { term: string; filtered: boolean };
+  search_zero_results: { term: string };
 };
 
 export type Analytics = { track: <E extends keyof ProductEvents>(event: E, data: ProductEvents[E]) => void };

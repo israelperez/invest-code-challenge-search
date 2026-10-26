@@ -11,4 +11,4 @@ Live-applying every tick fetches results the user never looks at and makes the l
 ## Consequences
 
 - One extra click on desktop compared with the common live-apply pattern.
-- Closing the mobile drawer without pressing the button discards pending changes; a new search keeps applied filters but discards pending ones.
+- Closing the mobile drawer without pressing the button discards pending changes; a new search keeps applied filters but discards pending ones. _Changed 2026-10-27 (Israel, #20): a new search now clears applied filters too, and keeps the sort._

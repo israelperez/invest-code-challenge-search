@@ -317,7 +317,7 @@ describe('Picking a suggestion is a search', () => {
 
   // The mobile drawer is modal, so the input cannot be reached while ticks are pending there. Beside the results
   // (tablet and up) ticks are pending for the debounce: a pick inside that window must discard them. Same App.search path.
-  it('keeps the applied filters and discards the pending ticks', async () => {
+  it('clears the applied filters and discards the pending ticks', async () => {
     const original = window.matchMedia;
     window.matchMedia = ((query: string) => ({ ...original(query), matches: true })) as typeof window.matchMedia;
     try {
@@ -338,13 +338,11 @@ describe('Picking a suggestion is a search', () => {
       await key('Enter');
       await tick(config.countsDebounceMs * 3);
 
-      expect(results().at(-1)).toMatchObject({
-        search_text: 'Global X',
-        kind: ['etf'],
-      });
+      expect(results().at(-1)).toMatchObject({ search_text: 'Global X' });
+      expect(results().at(-1)).not.toHaveProperty('kind');
       expect(results().some((body) => body.kind?.includes('equity'))).toBe(false);
       expect((screen.getByRole('checkbox', { name: /Shares \(equities\)/ }) as HTMLInputElement).checked).toBe(false);
-      expect((screen.getByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(true);
+      expect((screen.getByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).checked).toBe(false);
     } finally {
       window.matchMedia = original;
     }

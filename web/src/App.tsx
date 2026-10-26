@@ -38,7 +38,7 @@ export function App() {
   const state = term === null ? null : { term, filters: applied, order_by: orderBy };
   const query = useSearchIndex(state);
   // The search awaiting its first response, bound to the exact request it sent; a new object per search, so repeating a term re-arms it.
-  const [submission, setSubmission] = useState<{ term: string; request: string; filtered: boolean } | null>(null);
+  const [submission, setSubmission] = useState<{ term: string; request: string } | null>(null);
   const request = state && JSON.stringify(buildSearchRequest(state));
   // A recent search is saved when its first response has results. A failed or superseded search is dropped, and so is one
   // refined before its response lands (the response then belongs to the refinement), so refinements never re-add it or count as a search.
@@ -47,7 +47,7 @@ export function App() {
     if (submission.request !== request || query.isError) return setSubmission(null);
     if (!query.data || query.isPlaceholderData) return;
     if ((query.data.count ?? 0) > 0) recent?.add(submission.term);
-    else analytics.track('search_zero_results', { term: submission.term, filtered: submission.filtered });
+    else analytics.track('search_zero_results', { term: submission.term });
     setSubmission(null);
   }, [submission, request, query.data, query.isError, query.isPlaceholderData, recent, analytics]);
 
@@ -56,8 +56,10 @@ export function App() {
     logSearch(next);
     analytics.track('search_submitted', { term: next, source });
     setTerm(next);
-    setSubmission({ term: next, request: JSON.stringify(buildSearchRequest({ term: next, filters: applied, order_by: orderBy })), filtered: appliedCount(applied) > 0 });
-    setPending(applied);
+    setSubmission({ term: next, request: JSON.stringify(buildSearchRequest({ term: next, filters: {}, order_by: orderBy })) });
+    // A new term starts unfiltered, since the issuer and units options depend on it; the sort carries over.
+    setApplied({});
+    setPending({});
   }
 
   return (

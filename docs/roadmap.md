@@ -4,7 +4,7 @@ Features for the instrument search POC, grouped into bodies of work that can be 
 
 Milestones: **MVP** items form **M1**, a runnable vertical slice that meets every acceptance criterion; **Extra** items form **M2**, whose UI is removable without touching M1 (the search log is an M1 primitive; insights sits behind `ENABLE_INSIGHTS`). The binding contract is [`planning/PLAN.md`](./planning/PLAN.md).
 
-Status: `[ ]` todo · `[~]` in progress · `[x]` done · `?` decision still open
+Status: `[ ]` todo · `[~]` in progress · `[x]` done · `[-]` dropped · `?` decision still open
 
 ---
 
@@ -58,7 +58,7 @@ The input and its combobox popup. One body of work: shares the input, keyboard h
 - [ ] **MVP** Real-time **suggestions** while typing: 200ms debounce, from 3 characters, stale requests aborted
 - [ ] **MVP** Two suggestion groups in one keyboard list: **terms** (refine the query before submitting) and **instruments** (top 5 matches)
 - [ ] **MVP** `SuggestionSource` seam; adapter uses `/facets/issuer` + `/search?fields=` in parallel. A real build swaps in a `/suggest` endpoint
-- [ ] **MVP** A **search** (Enter, suggestion, popular pill, recent search) applies immediately and keeps the applied filters; un-applied filter ticks are discarded
+- [ ] **MVP** A **search** (Enter, suggestion, popular pill, recent search) applies immediately and clears the applied filters (the sort stays); un-applied filter ticks are discarded. _Changed 2026-10-27 (Israel, #20): was "keeps the applied filters"._
 - [ ] **Extra** **Recent searches**: last 5, case-insensitive dedupe, newest first, removable, saved when the search request fires (even if it returns zero or errors), `RecentSearchStore` seam over localStorage, updated in memory during the session
 - [ ] **Extra** Empty focused input shows recent searches (or a short hint if none); at 1–2 characters, only those starting with the typed text; from 3 characters, suggestions replace them
 
@@ -89,7 +89,7 @@ The input and its combobox popup. One body of work: shares the input, keyboard h
   - Drill-down: sections combine with AND, options within a section with OR. No relaxed "OR" results appended
 - [ ] **MVP** **Refinements apply on a button.** Ticking filters sends a debounced (150ms) counts-only request (`include: ["count", "facets"]`) so facet counts and the button total stay live; results are fetched only when the button is pressed. Button: "Show 1 result" / "Show 31 results" / "Show 1,240 results"; disabled "No matching results" at 0; keeps its width while counts load. On tablet/desktop it's sticky at the bottom of the rail and appears only with pending changes. Closing the mobile drawer without pressing discards the changes
 - [ ] **MVP** Sort select in the results header (not with filters), applied immediately: Recommended (API default), Ticker A–Z / Z–A, Name A–Z / Z–A, Units on issue high to low (equities only, noted). Resets to the first batch; persists across searches and has no reset button (picking Recommended is the reset)
-- [ ] **Extra** Zero results with filters applied: "Try removing" chips per active filter, each showing the count without it
+- [-] **Extra** Zero results with filters applied: "Try removing" chips per active filter, each showing the count without it. _Dropped 2026-10-27 (Israel, #20): a new search clears filters, and the rail and drawer block zero results, so filtered zero results no longer happen in normal use._
 - [ ] **MVP** Applied-filter chips above the results (`ETF ×`, `Vanguard ×`), plus "Clear filters" (filters only; term and sort stay). Removing a chip or clearing applies immediately. Hidden when nothing is applied; scrolls horizontally on mobile. The drawer/rail has its own "Clear filters" for pending ticks, still applied with the button
 
 ## 8. Analytics, insights and demo settings
