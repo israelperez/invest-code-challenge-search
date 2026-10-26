@@ -7,10 +7,10 @@ The PR is a demo for a reviewer who hasn't seen the work: what changed, why, and
 
 <2–4 sentences: the user-visible behaviour or API contract this delivers.>
 
-<When the change touches existing code, follow with two short lists so a reviewer can't misread its reach. Say outright if no endpoint or user-visible behaviour changed. Skip both lists for purely additive work.>
-
 What changed:
-- <Each new or altered piece, and who uses it now or first (name the ticket).>
+- <Always present: the overview a human scans first. One bullet per feature, groundwork piece or bug fix the PR adds or changes, led by what it gives in plain words ("Load more: …", "Error logging: …", "Groundwork: …", "Bug fix: …"), then where it lives (endpoint, module, config key) and who uses it now or first (name the ticket). One or two lines each; the reasoning and mechanics go in Why and How it works.>
+
+<When the change touches existing code, add this second list so a reviewer can't misread its reach. Say outright if no endpoint or user-visible behaviour changed. Skip it for purely additive work.>
 
 What stayed the same:
 - <The existing behaviour, modules and tests this leaves untouched, and how that is proved.>
