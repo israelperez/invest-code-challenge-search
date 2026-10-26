@@ -21,7 +21,7 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
               ref={inputRef}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="Ticker or name, e.g. A200"
+              placeholder="e.g. A200"
               fontSize="md"
               paddingEnd="10"
               maxLength={100}
@@ -45,6 +45,8 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
             Search
           </Button>
         </Flex>
+        {/* Helper text, not a placeholder: it stays visible while typing and wraps on narrow phones. */}
+        <Field.HelperText>Search by ASX code (ticker) or name</Field.HelperText>
       </Field.Root>
     </form>
   );
