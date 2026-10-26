@@ -19,6 +19,7 @@ It accepts requests from any origin, so a frontend on `http://localhost:3000` ca
 | --- | --- | --- |
 | POST | `/search` | Search results: free text, filters, ordering and pages |
 | POST | `/search/index` | ID-first search: count, an ordered window of IDs and the first documents |
+| POST | `/searches` | Record an explicit search in the search log (fire-and-forget, `202`) |
 | GET | `/version` | The current `indexed_at`, to spot a restarted API |
 | POST | `/facets/:key` | Filter options with counts, e.g. `/facets/kind` |
 | GET | `/facets/keys` | The facet keys you can request |
@@ -186,6 +187,23 @@ curl -X POST localhost:8787/facets/kind -d '{ "search_text": "bank" }'
 - `units_circulating` values are ranges such as `"1000000000,5000000000"`.
 - `is_*` values are `"true"` and `"false"`.
 - Add `?omit_empty_counts=true` to leave out values with a count of 0.
+
+## Search log
+
+`POST /searches` records one explicit search (a typed submit, a suggestion pick) so popular searches and zero-result insights can be built on server-computed numbers. Refinements are never sent. It is strict: unknown fields return `400`. It sits beside `/search/index` so results stay cacheable.
+
+```bash
+curl -X POST localhost:8787/searches \
+  -H 'X-Client-Id: 3f2b8c1e-5d4a-4e6b-9a7c-1d2e3f4a5b6c' \
+  -d '{ "term": "global x", "submission_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" }'
+# 202, empty body
+```
+
+- `term` is 1 to 100 characters. `submission_id` is a UUID. The `X-Client-Id` header is a required UUID the client keeps in localStorage. Anyone can fake it, so it raises the cost of poisoning rather than preventing it. Anything invalid returns `400`.
+- Otherwise the answer is always `202`, including when the search is not recorded: the request is rate limited (token buckets per IP, 60 a minute with a burst of 20, and per client ID, 20 a minute with a burst of 10), the dedupe key is empty (blank, only stop words, or a leading, trailing or repeated `OR`), or the `submission_id` was seen in the last 10 minutes (retries are idempotent).
+- The server counts the matches itself, without filters, for the trimmed, lowercased spelling (`OR` stays uppercase), and records the key, spelling, client, count and submission.
+- The log is in memory and bounded: 5,000 keys, 1,000 distinct clients per key, 10 spellings per key, 10,000 remembered submission IDs. All limits live in `src/search-log/search-log.config.ts`. It resets on restart.
+- Validation rejects, rate-limit drops and evictions print one JSON line to the console, never the term.
 
 ## Errors
 

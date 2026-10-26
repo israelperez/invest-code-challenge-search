@@ -10,8 +10,10 @@ import { config } from './config';
 import type { Filters } from './search/build-search-request';
 import { appliedCount } from './search/filter-options';
 import { useFacetCounts, useSearchIndex } from './search/queries';
+import { useSearchBackend } from './search/search-source-context';
 
 export function App() {
+  const { logSearch } = useSearchBackend();
   const [term, setTerm] = useState<string | null>(null);
   // Sort is independent of the term, so a new search keeps it.
   const [orderBy, setOrderBy] = useState<OrderBy>();
@@ -36,6 +38,8 @@ export function App() {
   const query = useSearchIndex(state);
 
   function search(next: string) {
+    // Every explicit search is logged, even one superseded before its results land.
+    logSearch(next);
     setTerm(next);
     setPending(applied);
   }
