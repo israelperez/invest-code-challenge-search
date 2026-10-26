@@ -21,11 +21,26 @@ function Logo({ src }: { src: string | null }) {
   );
 }
 
-export function ResultRow({ instrument }: { instrument: InstrumentDocument }) {
+type ResultRowProps = {
+  instrument: InstrumentDocument;
+  // Set on the first row of an appended batch so focus can land on it.
+  focusTarget?: React.Ref<HTMLDivElement>;
+};
+
+export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
   const issuer = issuerLabel(instrument.issuer);
   const units = instrument.kind === 'equity' && instrument.units_circulating;
   return (
-    <Flex as="li" gap="4" alignItems="center" paddingY="3" borderBottomWidth="1px" borderColor="border">
+    <Flex
+      as="li"
+      ref={focusTarget}
+      tabIndex={focusTarget ? -1 : undefined}
+      gap="4"
+      alignItems="center"
+      paddingY="3"
+      borderBottomWidth="1px"
+      borderColor="border"
+    >
       <Logo src={instrument.logo} />
       <Box flex="1" minWidth="0">
         <Flex gap="2" alignItems="baseline" wrap="wrap">

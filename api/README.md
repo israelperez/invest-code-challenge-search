@@ -147,6 +147,27 @@ To continue, send the next window with the `indexed_at` from the first response 
 
 Request bodies are limited to 32KB on every endpoint; larger ones return `413`.
 
+## Instruments batch
+
+`POST /instruments/batch` returns the full documents for a list of IDs, so a client that already has the IDs from `/search/index` can fetch only the ones it is missing. It is strict: unknown fields return `400`.
+
+```json
+{ "ids": ["A200:AU", "BNKS:AU", "NOPE:AU"], "snapshot": 1790908072598 }
+```
+
+```json
+{
+  "documents": [{ "symbol": "A200", "symbol_openfigi": "A200:AU", "...": "as in /search" }],
+  "missing": ["NOPE:AU"],
+  "indexed_at": 1790908072598
+}
+```
+
+- `ids` holds 1 to 100 IDs. Each is uppercased, then must match `/^[A-Z0-9.]+:[A-Z]{2}$/` (at most 30 characters before that check). Any bad ID returns `400`.
+- Duplicates are collapsed after uppercasing, keeping the first occurrence.
+- `documents` and `missing` follow request order. `missing` holds the uppercased IDs with no instrument.
+- `snapshot` is required: the `indexed_at` from an earlier response. If it no longer matches, the response is `409` with the current value, the same as `/search/index`. It is checked after the body is validated.
+
 ## Facets
 
 Facets give you filter options with counts. `GET /facets/keys` lists the facet keys: `kind`, `issuer`, the four `is_*` flags and `units_circulating`.
