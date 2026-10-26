@@ -14,7 +14,7 @@ export function SearchForm({ onSearch }: { onSearch: (term: string) => void }) {
   return (
     <form onSubmit={submit} role="search">
       <Field.Root>
-        <Field.Label>Search instruments</Field.Label>
+        <Field.Label>Search stocks and ETFs</Field.Label>
         <Flex gap="2" width="full">
           <Box position="relative" flex="1">
             <Input

@@ -23,14 +23,15 @@ const SkeletonRows = () =>
     </Flex>
   ));
 
-// Recommended is the API default, so it has no order_by.
+// Best match is the API default, so it has no order_by.
 const SORT_OPTIONS: { label: string; value: OrderBy | undefined }[] = [
-  { label: 'Recommended', value: undefined },
-  { label: 'Ticker A–Z', value: 'symbol.asc' },
-  { label: 'Ticker Z–A', value: 'symbol.desc' },
-  { label: 'Name A–Z', value: 'display_name.asc' },
-  { label: 'Name Z–A', value: 'display_name.desc' },
-  { label: 'Units on issue, high to low (equities only)', value: 'units_circulating.desc' },
+  { label: 'Best match', value: undefined },
+  { label: 'Exchange code (ticker) A – Z', value: 'symbol.asc' },
+  { label: 'Exchange code (ticker) Z – A', value: 'symbol.desc' },
+  { label: 'Investment name A – Z', value: 'display_name.asc' },
+  { label: 'Investment name Z – A', value: 'display_name.desc' },
+  { label: 'Shares issued high – low', value: 'units_circulating.desc' },
+  { label: 'Shares issued low – high', value: 'units_circulating.asc' },
 ];
 
 export function Results({
@@ -57,9 +58,12 @@ export function Results({
             </Heading>
           )}
         </Box>
-        <Field.Root orientation="horizontal" width="sm" maxWidth="full" marginStart="auto">
-          <Field.Label>Sort by</Field.Label>
-          <NativeSelect.Root>
+        <Field.Root orientation="horizontal" width="auto" maxWidth="full" marginStart="auto">
+          <Field.Label flex="none" whiteSpace="nowrap">
+            Sort by
+          </Field.Label>
+          {/* Fixed width, sized for the longest label, so the select never resizes with the chosen option. */}
+          <NativeSelect.Root width="72" maxWidth="full">
             <NativeSelect.Field value={state.order_by ?? ''} onChange={(e) => onSortChange((e.target.value || undefined) as OrderBy | undefined)}>
               {SORT_OPTIONS.map(({ label, value }) => (
                 <option key={label} value={value ?? ''}>

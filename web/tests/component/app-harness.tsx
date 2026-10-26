@@ -82,7 +82,7 @@ export function renderApp(api: FakeApi) {
 }
 
 export async function search(term: string) {
-  fireEvent.change(screen.getByLabelText('Search instruments'), { target: { value: term } });
+  fireEvent.change(screen.getByLabelText('Search stocks and ETFs'), { target: { value: term } });
   fireEvent.click(screen.getByRole('button', { name: 'Search' }));
   await screen.findByRole('heading', { level: 2 });
 }

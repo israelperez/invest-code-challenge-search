@@ -213,7 +213,7 @@ describe('Load more', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     api.searchIndex.mockRejectedValueOnce(new ApiError(500, 'boom'));
     renderApp(api);
-    fireEvent.change(screen.getByLabelText('Search instruments'), { target: { value: 'a' } });
+    fireEvent.change(screen.getByLabelText('Search stocks and ETFs'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     await screen.findByText('Something went wrong');

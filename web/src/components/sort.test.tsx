@@ -5,12 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { deferred, fake, fakeApi, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
 
 const LABELS = [
-  'Recommended',
-  'Ticker A–Z',
-  'Ticker Z–A',
-  'Name A–Z',
-  'Name Z–A',
-  'Units on issue, high to low (equities only)',
+  'Best match',
+  'Exchange code (ticker) A – Z',
+  'Exchange code (ticker) Z – A',
+  'Investment name A – Z',
+  'Investment name Z – A',
+  'Shares issued high – low',
+  'Shares issued low – high',
 ];
 const sortSelect = () => screen.getByLabelText('Sort by') as HTMLSelectElement;
 const pick = (label: string) =>
@@ -23,20 +24,21 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Sort', () => {
-  it('offers the six options in order, with Recommended selected', async () => {
+  it('offers the seven options in order, with Best match selected', async () => {
     renderApp(fakeApi());
     await search('a');
 
     expect(within(sortSelect()).getAllByRole('option').map((o) => o.textContent)).toEqual(LABELS);
-    expect(sortSelect().selectedOptions[0].textContent).toBe('Recommended');
+    expect(sortSelect().selectedOptions[0].textContent).toBe('Best match');
   });
 
   it.each([
-    ['Ticker A–Z', 'symbol.asc'],
-    ['Ticker Z–A', 'symbol.desc'],
-    ['Name A–Z', 'display_name.asc'],
-    ['Name Z–A', 'display_name.desc'],
-    ['Units on issue, high to low (equities only)', 'units_circulating.desc'],
+    ['Exchange code (ticker) A – Z', 'symbol.asc'],
+    ['Exchange code (ticker) Z – A', 'symbol.desc'],
+    ['Investment name A – Z', 'display_name.asc'],
+    ['Investment name Z – A', 'display_name.desc'],
+    ['Shares issued high – low', 'units_circulating.desc'],
+    ['Shares issued low – high', 'units_circulating.asc'],
   ])('%s sends order_by %s', async (label, orderBy) => {
     const api = fakeApi();
     renderApp(api);
@@ -47,18 +49,18 @@ describe('Sort', () => {
     await waitFor(() => expect(lastRequest(api)).toHaveProperty('order_by', orderBy));
   });
 
-  it('Recommended omits order_by again', async () => {
+  it('Best match omits order_by again', async () => {
     const api = fakeApi();
     renderApp(api);
     await search('a');
-    pick('Name A–Z');
+    pick('Investment name A – Z');
     await search('b');
     expect(lastRequest(api)).toHaveProperty('order_by', 'display_name.asc');
 
     // "b" has not been fetched unsorted yet, so this is a fresh request.
-    pick('Recommended');
+    pick('Best match');
     await waitFor(() => expect(lastRequest(api)).not.toHaveProperty('order_by'));
-    expect(sortSelect().selectedOptions[0].textContent).toBe('Recommended');
+    expect(sortSelect().selectedOptions[0].textContent).toBe('Best match');
   });
 
   it('keeps the term and filters, and resets to the first batch in the new order', async () => {
@@ -72,7 +74,7 @@ describe('Sort', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
     await waitFor(() => expect(rows()).toHaveLength(30));
 
-    pick('Ticker Z–A');
+    pick('Exchange code (ticker) Z – A');
     await waitFor(() => expect(rows()[0].textContent).toContain('A0833'));
 
     expect(lastRequest(api)).toEqual({ ...before, order_by: 'symbol.desc' });
@@ -85,14 +87,14 @@ describe('Sort', () => {
     const api = fakeApi();
     renderApp(api);
     await search('a');
-    pick('Ticker Z–A');
+    pick('Exchange code (ticker) Z – A');
     await waitFor(() => expect(rows()[0].textContent).toContain('A0833'));
 
     await search('b');
     await waitFor(() => expect(rows()[0].textContent).toContain('B0019'));
 
     expect(lastRequest(api)).toMatchObject({ search_text: 'b', order_by: 'symbol.desc' });
-    expect(sortSelect().selectedOptions[0].textContent).toBe('Ticker Z–A');
+    expect(sortSelect().selectedOptions[0].textContent).toBe('Exchange code (ticker) Z – A');
   });
 
   it('stays mounted and focused while the sorted first batch loads', async () => {
@@ -105,7 +107,7 @@ describe('Sort', () => {
 
     const sorted = deferred<Awaited<ReturnType<FakeApi['searchIndex']>>>();
     api.searchIndex.mockReturnValueOnce(sorted.promise);
-    pick('Name Z–A');
+    pick('Investment name Z – A');
 
     await waitFor(() => expect(skeletonRows().length).toBeGreaterThan(0));
     expect(sortSelect()).toBe(select);
