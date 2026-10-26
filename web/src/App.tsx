@@ -1,5 +1,6 @@
 import { Box, Container, Flex, Heading, useBreakpointValue, Image, IconButton } from '@chakra-ui/react';
 import { useEffect, useRef, useState } from 'react';
+import type { SearchTrigger } from './analytics/analytics';
 import type { OrderBy } from './api/types';
 import { AppliedFilters } from './components/AppliedFilters';
 import { FilterDrawer } from './components/FilterDrawer';
@@ -7,13 +8,13 @@ import { FilterRail } from './components/FilterRail';
 import { Results } from './components/Results';
 import { SearchForm } from './components/SearchForm';
 import { config } from './config';
-import type { Filters } from './search/build-search-request';
+import { buildSearchRequest, type Filters } from './search/build-search-request';
 import { appliedCount } from './search/filter-options';
 import { useFacetCounts, useSearchIndex } from './search/queries';
 import { useSearchBackend } from './search/search-source-context';
 
 export function App() {
-  const { logSearch, recent } = useSearchBackend();
+  const { logSearch, recent, analytics } = useSearchBackend();
   const [term, setTerm] = useState<string | null>(null);
   // Sort is independent of the term, so a new search keeps it.
   const [orderBy, setOrderBy] = useState<OrderBy>();
@@ -36,23 +37,26 @@ export function App() {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const state = term === null ? null : { term, filters: applied, order_by: orderBy };
   const query = useSearchIndex(state);
-  // The search awaiting its first response; a new object per search, so repeating a term re-arms it.
-  const [submission, setSubmission] = useState<{ term: string } | null>(null);
-  // A recent search is saved when its first response has results. A failed or superseded search is dropped,
-  // and later refinements find no pending submission, so they never re-add it.
+  // The search awaiting its first response, bound to the exact request it sent; a new object per search, so repeating a term re-arms it.
+  const [submission, setSubmission] = useState<{ term: string; request: string; filtered: boolean } | null>(null);
+  const request = state && JSON.stringify(buildSearchRequest(state));
+  // A recent search is saved when its first response has results. A failed or superseded search is dropped, and so is one
+  // refined before its response lands (the response then belongs to the refinement), so refinements never re-add it or count as a search.
   useEffect(() => {
-    if (!submission || submission.term !== term) return;
-    if (query.isError) return setSubmission(null);
+    if (!submission) return;
+    if (submission.request !== request || query.isError) return setSubmission(null);
     if (!query.data || query.isPlaceholderData) return;
     if ((query.data.count ?? 0) > 0) recent?.add(submission.term);
+    else analytics.track('search_zero_results', { term: submission.term, filtered: submission.filtered });
     setSubmission(null);
-  }, [submission, term, query.data, query.isError, query.isPlaceholderData, recent]);
+  }, [submission, request, query.data, query.isError, query.isPlaceholderData, recent, analytics]);
 
-  function search(next: string) {
+  function search(next: string, source: SearchTrigger) {
     // Every explicit search is logged, even one superseded before its results land.
     logSearch(next);
+    analytics.track('search_submitted', { term: next, source });
     setTerm(next);
-    setSubmission({ term: next });
+    setSubmission({ term: next, request: JSON.stringify(buildSearchRequest({ term: next, filters: applied, order_by: orderBy })), filtered: appliedCount(applied) > 0 });
     setPending(applied);
   }
 

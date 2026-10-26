@@ -11,9 +11,11 @@ import type {
   SearchIndexRequest,
   SuggestInstrumentsRequest,
 } from '../../src/api/types';
+import type { Analytics } from '../../src/analytics/analytics';
 import { config, popularRequestLimit } from '../../src/config';
 import { createPopularSource } from '../../src/search/popular-source';
 import { createRecentSearchStore, type RecentSearchStore } from '../../src/search/recent-search-store';
+import type { Report } from '../../src/search/report';
 import { createSearchLogger } from '../../src/search/search-logger';
 import { createSearchSource } from '../../src/search/search-source';
 import { createSuggestionSource } from '../../src/search/suggestion-source';
@@ -131,18 +133,23 @@ export function freshRecentStore(limit: number = config.recentSearchLimit) {
   return createRecentSearchStore(() => storage, { limit });
 }
 
-export function renderApp(api: FakeApi, { recent = freshRecentStore() }: { recent?: RecentSearchStore | null } = {}) {
-  const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit });
+// Returns the spies the backend was given: product events and problem reports. Pass your own to share them.
+export function renderApp(
+  api: FakeApi,
+  { recent = freshRecentStore(), analytics = { track: vi.fn() }, report = vi.fn() }: { recent?: RecentSearchStore | null; analytics?: Analytics; report?: Report } = {},
+) {
+  const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit, report });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit }), recent, logSearch: createSearchLogger(api, () => 'test-client') }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }), popular: createPopularSource(api, { limit: popularRequestLimit }), recent, logSearch: createSearchLogger(api, () => 'test-client'), analytics, report }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>
     </ChakraProvider>,
   );
+  return { analytics, report };
 }
 
 export async function search(term: string) {
