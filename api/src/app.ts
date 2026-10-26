@@ -5,6 +5,7 @@ import Router from '@koa/router';
 
 import {
   FacetsController,
+  InstrumentsBatchController,
   InstrumentsRepository,
   JsonInstrumentsRepository,
   SearchController,
@@ -55,19 +56,25 @@ interface AppControllers {
   healthController: HealthController;
   searchController: SearchController;
   searchIndexController: SearchIndexController;
+  instrumentsBatchController: InstrumentsBatchController;
   facetsController: FacetsController;
 }
 
 function initAppModules(repository: InstrumentsRepository): AppControllers {
   const healthController = new HealthController();
 
-  const { searchController, searchIndexController, facetsController } =
-    initSearchModule(repository);
+  const {
+    searchController,
+    searchIndexController,
+    instrumentsBatchController,
+    facetsController,
+  } = initSearchModule(repository);
 
   return {
     healthController,
     searchController,
     searchIndexController,
+    instrumentsBatchController,
     facetsController,
   };
 }
@@ -79,6 +86,7 @@ function registerAppRoutes(app: Koa, controllers: AppControllers) {
   const routers: Router[] = [
     controllers.healthController.getRouter(),
     controllers.searchController.getRouter(),
+    controllers.instrumentsBatchController.getRouter(),
     controllers.searchIndexController.getRouter(),
     controllers.facetsController.getRouter(),
   ];
