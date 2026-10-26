@@ -4,9 +4,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { App } from '../../src/App';
-import type { FacetEntry, InstrumentDocument, InstrumentsBatchRequest, SearchIndexRequest } from '../../src/api/types';
+import type {
+  FacetEntry,
+  InstrumentDocument,
+  InstrumentsBatchRequest,
+  SearchIndexRequest,
+  SuggestInstrumentsRequest,
+} from '../../src/api/types';
 import { config } from '../../src/config';
 import { createSearchSource } from '../../src/search/search-source';
+import { createSuggestionSource } from '../../src/search/suggestion-source';
 import { SearchBackendContext } from '../../src/search/search-source-context';
 import { system } from '../../src/theme';
 
@@ -66,7 +73,7 @@ export function fakeApi() {
   return {
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),
     searchIndex: vi.fn(async (body: SearchIndexRequest, _signal?: AbortSignal) => {
-      const base = catalogues[body.search_text ?? 'a'];
+      const base = catalogues[body.search_text ?? 'a'] ?? catalogues.b;
       // Reverse for .desc so a sort change is observable.
       const all = body.order_by?.endsWith('.desc') ? [...base].reverse() : base;
       const window = all.slice(body.id_offset ?? 0, (body.id_offset ?? 0) + (body.id_limit ?? 1000));
@@ -80,6 +87,22 @@ export function fakeApi() {
         ...(body.include?.includes('documents') && { documents: window.slice(0, body.document_limit).map(doc) }),
       };
     }),
+    // Issuer slugs as the API returns them; "globalx" is labelled "Global X".
+    facetIssuer: vi.fn(async (_signal?: AbortSignal): Promise<FacetEntry[]> =>
+      ['globalx', 'global_funds', 'vaneck', 'x_global'].map((value) => ({ value, count: 1 })),
+    ),
+    // "zzz" matches nothing; any other text finds the same two instruments.
+    suggestInstruments: vi.fn(async (body: SuggestInstrumentsRequest, _signal?: AbortSignal) => ({
+      results:
+        body.search_text === 'zzz'
+          ? []
+          : [
+              { symbol: 'GLOB', symbol_openfigi: 'GLOB:AU', display_name: 'Global Share Active ETF', logo: null },
+              { symbol: 'ARMR', symbol_openfigi: 'ARMR:AU', display_name: 'Global Defence ETF', logo: null },
+            ],
+      count: 2,
+      indexed_at: fake.indexedAt,
+    })),
     instrumentsBatch: vi.fn(async (body: InstrumentsBatchRequest, _signal?: AbortSignal) => ({
       documents: body.ids.map(doc),
       missing: [] as string[],
@@ -95,7 +118,7 @@ export function renderApp(api: FakeApi) {
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>
-        <SearchBackendContext.Provider value={{ api, source }}>
+        <SearchBackendContext.Provider value={{ api, source, suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }) }}>
           <App />
         </SearchBackendContext.Provider>
       </QueryClientProvider>

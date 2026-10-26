@@ -1,8 +1,9 @@
 import { createContext, useContext } from 'react';
 import type { ApiClient } from '../api/client';
 import type { SearchSource } from './search-source';
+import type { SuggestionSource } from './suggestion-source';
 
-type SearchBackend = { api: ApiClient; source: SearchSource };
+type SearchBackend = { api: ApiClient; source: SearchSource; suggestions: SuggestionSource };
 
 // Created once in main.tsx; tests provide their own over a fake client.
 export const SearchBackendContext = createContext<SearchBackend | null>(null);

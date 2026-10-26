@@ -54,3 +54,9 @@ export type InstrumentsBatchResponse = {
   missing: string[];
   indexed_at: number;
 };
+
+export type SuggestInstrumentsRequest = { search_text: string; size: number };
+
+export type SuggestedInstrument = Pick<InstrumentDocument, 'symbol' | 'symbol_openfigi' | 'display_name' | 'logo'>;
+
+export type SuggestInstrumentsResponse = { results: SuggestedInstrument[]; count: number; indexed_at: number };

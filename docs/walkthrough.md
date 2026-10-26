@@ -39,7 +39,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
    - Nothing fires (Network stays quiet): suggestions start at 3 characters
 2. Type `n` → `van`.
    - After a short pause, one request pair fires, not one per keystroke
-   - Popup shows two groups: **Searches** (e.g. Vanguard, VanEck) and **Instruments** (top 5 with logos)
+   - Popup shows two groups: **Suggested searches** (e.g. Vanguard, VanEck) and **Matching shares and ETFs** (top 5)
 3. Type quickly: `vang`.
    - Earlier in-flight requests are cancelled (shown as cancelled in Network)
 4. Arrow down through both groups, then Enter on a search term.
