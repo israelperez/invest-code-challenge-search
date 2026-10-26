@@ -96,7 +96,7 @@ describe('Suggestions requests', () => {
 });
 
 describe('Suggestions list', () => {
-  it('shows labelled Searches and Instruments groups', async () => {
+  it('shows the two labelled groups', async () => {
     await open();
 
     expect(expanded()).toBe('true');
