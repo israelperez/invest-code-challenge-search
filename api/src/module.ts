@@ -64,6 +64,9 @@ export function initSearchLogModule(
 ): {
   searchLogController: SearchLogController;
   popularController: PopularController;
+  // Shared with the insights module.
+  searchLog: SearchLog;
+  ready: Promise<void>;
   flushSearchLog: () => void;
 } {
   let ready = Promise.resolve();
@@ -83,6 +86,8 @@ export function initSearchLogModule(
   return {
     searchLogController: new SearchLogController(searchLog),
     popularController: new PopularController(searchLog, ready),
+    searchLog,
+    ready,
     flushSearchLog,
   };
 }

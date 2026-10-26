@@ -84,6 +84,13 @@ export function fakeApi() {
       ],
       includes_seed_data: true as const,
     })),
+    zeroResults: vi.fn(async (_signal?: AbortSignal) => ({
+      groups: [
+        { key: 'bitcoin', clients: 4, total: 9, spellings: [{ text: 'Bitcoin', total: 7 }, { text: 'BTC', total: 2 }] },
+        { key: 'crypto', clients: 2, total: 3, spellings: [{ text: 'Crypto', total: 3 }] },
+      ],
+      includes_seed_data: true as const,
+    })),
     logSearch: vi.fn(async (_term: string, _submissionId: string, _clientId: string) => undefined),
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),
     searchIndex: vi.fn(async (body: SearchIndexRequest, _signal?: AbortSignal) => {

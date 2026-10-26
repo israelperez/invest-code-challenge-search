@@ -47,7 +47,7 @@ export default async function setup(project: TestProject) {
   const child = spawn(process.execPath, ['-r', 'ts-node/register', 'src/main.ts'], {
     cwd: API_DIR,
     // The spawned API logs searches, so it gets its own log file and never touches the developer's.
-    env: { ...process.env, PORT: String(port), SEARCH_LOG_FILE: join(mkdtempSync(join(tmpdir(), 'search-log-contract-')), 'search-log.json') },
+    env: { ...process.env, ENABLE_INSIGHTS: 'true', PORT: String(port), SEARCH_LOG_FILE: join(mkdtempSync(join(tmpdir(), 'search-log-contract-')), 'search-log.json') },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let log = '';

@@ -3,6 +3,7 @@ import type {
   InstrumentsBatchRequest,
   InstrumentsBatchResponse,
   PopularResponse,
+  ZeroResultsResponse,
   SearchIndexRequest,
   SearchIndexResponse,
   SuggestInstrumentsRequest,
@@ -64,6 +65,8 @@ export function createApiClient(baseUrl: string) {
         signal,
       }),
     popular: (limit: number, signal?: AbortSignal) => request<PopularResponse>(`/popular?limit=${limit}`, { signal }),
+    // Dev only: 404 when the API runs without ENABLE_INSIGHTS.
+    zeroResults: (signal?: AbortSignal) => request<ZeroResultsResponse>('/insights/zero-results', { signal }),
     // Fire-and-forget log of an explicit search; the server answers 202 with no body.
     logSearch: (term: string, submissionId: string, clientId: string) =>
       request<void>('/searches', {
