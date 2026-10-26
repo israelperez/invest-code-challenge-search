@@ -1,0 +1,187 @@
+[
+  {
+    "term": "A200",
+    "clients": 14,
+    "searches": 24
+  },
+  {
+    "term": "a200",
+    "clients": 8,
+    "searches": 10
+  },
+  {
+    "term": "NDQ",
+    "clients": 15,
+    "searches": 22
+  },
+  {
+    "term": "ndq",
+    "clients": 4,
+    "searches": 5
+  },
+  {
+    "term": "QAU",
+    "clients": 13,
+    "searches": 18
+  },
+  {
+    "term": "DHHF",
+    "clients": 12,
+    "searches": 16
+  },
+  {
+    "term": "dhhf",
+    "clients": 4,
+    "searches": 4
+  },
+  {
+    "term": "HQLT",
+    "clients": 11,
+    "searches": 14
+  },
+  {
+    "term": "BGBL",
+    "clients": 10,
+    "searches": 13
+  },
+  {
+    "term": "Betashares",
+    "clients": 6,
+    "searches": 8
+  },
+  {
+    "term": "BetaShares",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "ETHI",
+    "clients": 5,
+    "searches": 7
+  },
+  {
+    "term": "ethi",
+    "clients": 3,
+    "searches": 3
+  },
+  {
+    "term": "HACK",
+    "clients": 7,
+    "searches": 9
+  },
+  {
+    "term": "F100",
+    "clients": 6,
+    "searches": 8
+  },
+  {
+    "term": "BNDS",
+    "clients": 5,
+    "searches": 6
+  },
+  {
+    "term": "Vanguard",
+    "clients": 5,
+    "searches": 8
+  },
+  {
+    "term": "vanguard",
+    "clients": 2,
+    "searches": 3
+  },
+  {
+    "term": "VAS",
+    "clients": 4,
+    "searches": 6
+  },
+  {
+    "term": "Vas",
+    "clients": 2,
+    "searches": 2
+  },
+  {
+    "term": "Global X",
+    "clients": 4,
+    "searches": 5
+  },
+  {
+    "term": "global x",
+    "clients": 3,
+    "searches": 3
+  },
+  {
+    "term": "Gold",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "gold",
+    "clients": 2,
+    "searches": 3
+  },
+  {
+    "term": "Nasdaq",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "Bitcoin",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "Bank",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "Hedged",
+    "clients": 3,
+    "searches": 3
+  },
+  {
+    "term": "dividend",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "ESG",
+    "clients": 2,
+    "searches": 2
+  },
+  {
+    "term": "IVV",
+    "clients": 3,
+    "searches": 5
+  },
+  {
+    "term": "Australian Shares",
+    "clients": 3,
+    "searches": 4
+  },
+  {
+    "term": "China ETF",
+    "clients": 3,
+    "searches": 3
+  },
+  {
+    "term": "bank OR gold",
+    "clients": 9,
+    "searches": 12
+  },
+  {
+    "term": "zzzz",
+    "clients": 6,
+    "searches": 7
+  },
+  {
+    "term": "Xbitcoinx",
+    "clients": 5,
+    "searches": 5
+  },
+  {
+    "term": "lithium miners",
+    "clients": 4,
+    "searches": 4
+  }
+]

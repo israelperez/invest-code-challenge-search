@@ -6,6 +6,7 @@ export enum ApiEndpoint {
   Search = '/search',
   SearchIndex = '/search/index',
   Searches = '/searches',
+  Popular = '/popular',
   Version = '/version',
   Instrument = '/instruments/:id',
   InstrumentsBatch = '/instruments/batch',

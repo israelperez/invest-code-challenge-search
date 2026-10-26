@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
+import { SearchLog } from '../src/search-log/search-log';
 import { InstrumentDocument, InstrumentsRepository } from '../src/index';
 
 // Tests the facets of POST /search/index on a small in-memory catalogue, plus parity with /facets on real data.
@@ -54,8 +55,14 @@ const flags = [
   'is_auto_invest_included',
 ] as const;
 
+// An injected log starts empty, so seeding doesn't add repository reads.
 const makeApi = (repository: InstrumentsRepository) =>
-  request(createApp({ repository }).callback());
+  request(
+    createApp({
+      repository,
+      searchLog: new SearchLog({ clock: () => 0, countFor: async () => 0 }),
+    }).callback(),
+  );
 const repository: InstrumentsRepository = {
   getAll: () => Promise.resolve(documents),
   getIndexedAt: () => Promise.resolve(1234),

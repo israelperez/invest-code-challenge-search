@@ -17,6 +17,8 @@ export type SubmitOutcome =
 
 export interface SpellingAggregate {
   spelling: string;
+  // The most common original casing seen, trimmed and whitespace collapsed.
+  display: string;
   count: number;
   unfiltered_count: number;
 }
@@ -33,17 +35,57 @@ export interface KeyAggregate {
 }
 
 interface KeyEntry {
-  spellings: Map<string, SpellingAggregate & { order: number }>;
+  spellings: Map<
+    string,
+    Omit<SpellingAggregate, 'display'> & {
+      order: number;
+      casings: Map<string, number>;
+    }
+  >;
   clients: Set<string>;
   total: number;
   positiveTotal: number;
   lastSeen: number;
 }
 
+/**
+ * A fake history line for seeding: `searches` searches of `term` spread over `clients` clients.
+ */
+export interface SeedEntry {
+  term: string;
+  clients: number;
+  searches: number;
+}
+
+/**
+ * The log as saved to disk (version 1): the aggregates and the order counter, not the submission IDs,
+ * token buckets or count memo, which are cheap to rebuild.
+ */
+export interface SearchLogSnapshot {
+  version: 1;
+  order: number;
+  keys: {
+    key: string;
+    spellings: {
+      spelling: string;
+      count: number;
+      unfiltered_count: number;
+      order: number;
+      casings: [string, number][];
+    }[];
+    clients: string[];
+    total: number;
+    positiveTotal: number;
+    lastSeen: number;
+  }[];
+}
+
 export interface SearchLogDeps {
   clock: () => number;
   // Unfiltered result count for an executable spelling.
   countFor: (spelling: string) => Promise<number>;
+  // Called after each recorded search (not seeding), e.g. to save.
+  onRecorded?: () => void;
   config?: Partial<SearchLogConfig>;
 }
 
@@ -107,8 +149,9 @@ export class SearchLog {
     return [...this.keys].map(([key, entry]) => ({
       key,
       spellings: [...entry.spellings.values()].map(
-        ({ spelling, count, unfiltered_count }) => ({
+        ({ spelling, count, unfiltered_count, casings }) => ({
           spelling,
+          display: [...casings].reduce((a, b) => (b[1] > a[1] ? b : a))[0],
           count,
           unfiltered_count,
         }),
@@ -119,6 +162,72 @@ export class SearchLog {
       has_positive_result: entry.positiveTotal > 0,
       last_seen: entry.lastSeen,
     }));
+  }
+
+  snapshot(): SearchLogSnapshot {
+    return {
+      version: 1,
+      order: this.order,
+      keys: [...this.keys].map(([key, entry]) => ({
+        key,
+        spellings: [...entry.spellings.values()].map(({ spelling, count, unfiltered_count, order, casings }) => ({
+          spelling,
+          count,
+          unfiltered_count,
+          order,
+          casings: [...casings],
+        })),
+        clients: [...entry.clients],
+        total: entry.total,
+        positiveTotal: entry.positiveTotal,
+        lastSeen: entry.lastSeen,
+      })),
+    };
+  }
+
+  /**
+   * Replaces the aggregates with a snapshot, cut to the config bounds so a hand-edited file can't exceed them.
+   */
+  restore(snapshot: SearchLogSnapshot) {
+    const { maxKeys, maxSpellingsPerKey, maxClientsPerKey, maxCasingsPerSpelling } = this.config;
+    this.keys = new Map(
+      snapshot.keys.slice(0, maxKeys).map(({ key, spellings, clients, total, positiveTotal, lastSeen }) => [
+        key,
+        {
+          spellings: new Map(
+            spellings.slice(0, maxSpellingsPerKey).map(({ casings, ...rest }) => [
+              rest.spelling,
+              { ...rest, casings: new Map(casings.slice(0, maxCasingsPerSpelling)) },
+            ]),
+          ),
+          clients: new Set(clients.slice(0, maxClientsPerKey)),
+          total,
+          positiveTotal,
+          lastSeen,
+        },
+      ]),
+    );
+    this.order = snapshot.order;
+  }
+
+  /**
+   * Adds a fake history through the normal aggregation (real counts, keys, spellings), skipping rate
+   * limits and the submission ID registry. Entries with an empty dedupe key are ignored. All-or-nothing: if any count fails, nothing is added.
+   */
+  async seed(entries: SeedEntry[]): Promise<void> {
+    // All counts first: a failed count adds nothing, never a partial history.
+    const keyed = entries.flatMap((entry) => {
+      const key = dedupeKey(entry.term);
+      return key ? [{ ...entry, key }] : [];
+    });
+    const counts = await Promise.all(
+      keyed.map(({ term }) => this.unfilteredCount(executableSpelling(term))),
+    );
+    keyed.forEach(({ key, term, clients, searches }, index) => {
+      for (let n = 0; n < searches; n++) {
+        this.add(key, term, `seed-${index}-${n % clients}`, counts[index]);
+      }
+    });
   }
 
   /**
@@ -139,8 +248,9 @@ export class SearchLog {
       devLog('search-log.count-failed');
       throw error;
     }
-    this.add(key, spelling, clientId, unfilteredCount);
+    this.add(key, term, clientId, unfilteredCount);
     this.register(submissionId);
+    this.deps.onRecorded?.();
   }
 
   /**
@@ -181,10 +291,12 @@ export class SearchLog {
 
   private add(
     key: string,
-    spelling: string,
+    term: string,
     clientId: string,
     unfilteredCount: number,
   ) {
+    const spelling = executableSpelling(term);
+    const casing = term.trim().replace(/\s+/g, ' ');
     let entry = this.keys.get(key);
     if (!entry) {
       entry = {
@@ -207,12 +319,14 @@ export class SearchLog {
     const existing = entry.spellings.get(spelling);
     if (existing) {
       existing.count += 1;
+      this.countCasing(existing.casings, casing);
     } else {
       entry.spellings.set(spelling, {
         spelling,
         count: 1,
         unfiltered_count: unfilteredCount,
         order: this.order++,
+        casings: new Map([[casing, 1]]),
       });
       if (entry.spellings.size > this.config.maxSpellingsPerKey) {
         this.evictSpelling(entry);
@@ -221,6 +335,14 @@ export class SearchLog {
 
     if (this.keys.size > this.config.maxKeys) {
       this.evictKey();
+    }
+  }
+
+  // Casings past the bound are not counted (saturating), like clients.
+  private countCasing(casings: Map<string, number>, casing: string) {
+    const seen = casings.get(casing);
+    if (seen !== undefined || casings.size < this.config.maxCasingsPerSpelling) {
+      casings.set(casing, (seen ?? 0) + 1);
     }
   }
 
