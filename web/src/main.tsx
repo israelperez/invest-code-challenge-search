@@ -6,12 +6,16 @@ import { App } from './App';
 import { createApiClient } from './api/client';
 import { config } from './config';
 import { createSearchSource } from './search/search-source';
+import { createSuggestionSource } from './search/suggestion-source';
 import { SearchBackendContext } from './search/search-source-context';
 import { system } from './theme';
 
 const queryClient = new QueryClient();
 const api = createApiClient(config.apiBaseUrl);
-const backend = { api, source: createSearchSource(api, config) };
+const backend = {
+  api, source: createSearchSource(api, config),
+  suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }),
+};
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
