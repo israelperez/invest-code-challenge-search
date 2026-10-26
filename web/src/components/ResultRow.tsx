@@ -1,5 +1,5 @@
 import { Badge, Box, Flex, Image, Text } from '@chakra-ui/react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { InstrumentDocument } from '../api/types';
 import defaultLogo from '../assets/default-logo.svg';
 import { issuerLabel } from '../format/issuer-label';
@@ -52,26 +52,20 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
           <Text>{instrument.display_name}</Text>
         </Flex>
         <Text color="fg.muted" fontSize="sm">
-          {[
-            <>
-              {kindLabel(instrument.kind)}
-              <RawHint value={instrument.kind} />
-            </>,
-            issuer && (
-              <>
-                {issuer}
-                <RawHint value={instrument.issuer!} />
-              </>
-            ),
-            units && (
-              <>
-                {unitsFormat.format(Number(units))} units on issue
-                <RawHint value={units} />
-              </>
-            ),
-          ]
-            .filter(Boolean)
-            .flatMap((part, i) => (i ? [' · ', part] : [part]))}
+          {(
+            [
+              ['kind', <>{kindLabel(instrument.kind)}<RawHint value={instrument.kind} /></>],
+              ['issuer', issuer && <>{issuer}<RawHint value={instrument.issuer!} /></>],
+              ['units', units && <>{unitsFormat.format(Number(units))} units on issue<RawHint value={units} /></>],
+            ] as const
+          )
+            .filter(([, part]) => part)
+            .map(([key, part], i) => (
+              <Fragment key={key}>
+                {i > 0 && ' · '}
+                {part}
+              </Fragment>
+            ))}
           <RawHint value={instrument.symbol_openfigi} />
         </Text>
       </Box>

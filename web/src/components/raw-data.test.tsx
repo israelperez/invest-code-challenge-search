@@ -3,7 +3,7 @@ import '../../tests/component/jsdom-setup';
 import { ChakraProvider } from '@chakra-ui/react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { doc, fake, fakeApi, renderApp, search } from '../../tests/component/app-harness';
 import { config } from '../config';
 import { system } from '../theme';
@@ -33,6 +33,14 @@ async function openPanel() {
 }
 
 describe('Show raw data in a result row', () => {
+  it.each([true, false])('renders without a React key warning with raw data %s', (on) => {
+    flags.showRawData = on;
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<ResultRow instrument={share()} />, { wrapper });
+    expect(error.mock.calls.filter((c) => String(c[0]).includes('unique "key"'))).toEqual([]);
+    error.mockRestore();
+  });
+
   it('adds the raw issuer, type and instrument ID to an ETF row, and the raw units to a share row', () => {
     flags.showRawData = true;
     const { container } = render(<ResultRow instrument={etf()} />, { wrapper });
