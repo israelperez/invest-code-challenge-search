@@ -26,8 +26,8 @@ const SkeletonRows = () =>
 // Best match is the API default, so it has no order_by.
 const SORT_OPTIONS: { label: string; value: OrderBy | undefined }[] = [
   { label: 'Best match', value: undefined },
-  { label: 'Exchange code (ticker) A – Z', value: 'symbol.asc' },
-  { label: 'Exchange code (ticker) Z – A', value: 'symbol.desc' },
+  { label: 'ASX code (ticker) A – Z', value: 'symbol.asc' },
+  { label: 'ASX code (ticker) Z – A', value: 'symbol.desc' },
   { label: 'Investment name A – Z', value: 'display_name.asc' },
   { label: 'Investment name Z – A', value: 'display_name.desc' },
   { label: 'Shares issued high – low', value: 'units_circulating.desc' },

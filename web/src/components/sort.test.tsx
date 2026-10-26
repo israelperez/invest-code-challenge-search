@@ -6,8 +6,8 @@ import { deferred, fake, fakeApi, renderApp, rows, search, skeletonRows, type Fa
 
 const LABELS = [
   'Best match',
-  'Exchange code (ticker) A – Z',
-  'Exchange code (ticker) Z – A',
+  'ASX code (ticker) A – Z',
+  'ASX code (ticker) Z – A',
   'Investment name A – Z',
   'Investment name Z – A',
   'Shares issued high – low',
@@ -33,8 +33,8 @@ describe('Sort', () => {
   });
 
   it.each([
-    ['Exchange code (ticker) A – Z', 'symbol.asc'],
-    ['Exchange code (ticker) Z – A', 'symbol.desc'],
+    ['ASX code (ticker) A – Z', 'symbol.asc'],
+    ['ASX code (ticker) Z – A', 'symbol.desc'],
     ['Investment name A – Z', 'display_name.asc'],
     ['Investment name Z – A', 'display_name.desc'],
     ['Shares issued high – low', 'units_circulating.desc'],
@@ -74,7 +74,7 @@ describe('Sort', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Load more' }));
     await waitFor(() => expect(rows()).toHaveLength(30));
 
-    pick('Exchange code (ticker) Z – A');
+    pick('ASX code (ticker) Z – A');
     await waitFor(() => expect(rows()[0].textContent).toContain('A0833'));
 
     expect(lastRequest(api)).toEqual({ ...before, order_by: 'symbol.desc' });
@@ -87,14 +87,14 @@ describe('Sort', () => {
     const api = fakeApi();
     renderApp(api);
     await search('a');
-    pick('Exchange code (ticker) Z – A');
+    pick('ASX code (ticker) Z – A');
     await waitFor(() => expect(rows()[0].textContent).toContain('A0833'));
 
     await search('b');
     await waitFor(() => expect(rows()[0].textContent).toContain('B0019'));
 
     expect(lastRequest(api)).toMatchObject({ search_text: 'b', order_by: 'symbol.desc' });
-    expect(sortSelect().selectedOptions[0].textContent).toBe('Exchange code (ticker) Z – A');
+    expect(sortSelect().selectedOptions[0].textContent).toBe('ASX code (ticker) Z – A');
   });
 
   it('stays mounted and focused while the sorted first batch loads', async () => {

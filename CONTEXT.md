@@ -13,7 +13,7 @@ _Avoid_: Product, fund, security, stock
 
 **Ticker**:
 The short exchange code that identifies an instrument, e.g. `A200`.
-The UI labels it "Exchange code (ticker)" so people who don't know the word understand it.
+The UI labels it "ASX code (ticker)" so people who don't know the word understand it.
 _Avoid_: symbol (in user-facing copy)
 
 **Issuer**:
