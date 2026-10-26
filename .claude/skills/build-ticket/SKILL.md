@@ -16,7 +16,7 @@ This session is the **orchestrator**: it decides and verifies. A sonnet **builde
 ## Steps
 
 1. **Pick.** Take `#N` if given. Otherwise take the frontier: the lowest-numbered open `ready-for-agent` issue whose blockers are all closed (`gh api repos/{owner}/{repo}/issues/<n>/dependencies/blocked_by`). Read the issue, the PLAN.md sections and ADRs it rests on, and every file it touches, in full. Done when you can name every file the change reaches.
-2. **Seams.** Propose the test seams (the public boundaries tests sit at, per `tdd`), each mapped to the acceptance criteria it proves. Done when the user confirms them; nothing spawns before that.
+2. **Seams.** Derive the test seams (the public boundaries tests sit at, per `tdd`) from the acceptance criteria and the existing tests, each mapped to the criteria it proves. List them for the user and carry on without waiting; ask first only when a seam needs new test infrastructure or a new dependency.
 3. **Branch** off freshly pulled `main`: `<type>/<issue>-<slug>`, where type is the Conventional Commit type of the main change (e.g. `test/2-api-baseline`).
 4. **Build.** Spawn one `general-purpose` agent with `model: sonnet` and the brief from [builder-brief.md](builder-brief.md), every slot filled. Independent frontier tickets may build in parallel, each with `isolation: "worktree"`. Done when the builder returns its diff summary and full test output.
 5. **Verify.** Run `npm test` yourself. Walk every acceptance criterion and cite the test or code that meets it; spot-read only what is contested. An unmet criterion goes back to the same builder via `SendMessage`.
