@@ -35,7 +35,9 @@ export function InsightsTab() {
           {data.groups.map((group) => (
             <List.Item key={group.key} borderWidth="1px" borderColor="border" rounded="l2" padding="3">
               <Flex justifyContent="space-between" gap="2" flexWrap="wrap">
-                <Text fontWeight="semibold">{group.key}</Text>
+                <Text textStyle="titleSm" color="ink">
+                  {group.key}
+                </Text>
                 <HStack gap="2" color="fg.muted">
                   <Text>{group.clients} clients</Text>
                   <Text>{group.total} searches</Text>

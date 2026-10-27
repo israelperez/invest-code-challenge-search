@@ -49,8 +49,8 @@ describe('filterSections', () => {
       'Available for Auto Invest',
       'Type',
       'Issuer',
-      'Shares issued (equities only)',
       'Portfolio eligible only',
+      'Shares issued (equities only)',
     ]);
   });
 
@@ -103,7 +103,7 @@ describe('filterSections', () => {
   });
 
   it('still lists the known options before any counts arrive', () => {
-    const [, , , kind, , units] = filterSections(undefined, {});
+    const [, , , kind, , , units] = filterSections(undefined, {});
     expect(kind.options.map((o) => [o.label, o.count, o.disabled])).toEqual([
       ['ETFs', undefined, false],
       ['Shares (equities)', undefined, false],

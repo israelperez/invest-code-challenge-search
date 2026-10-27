@@ -50,16 +50,19 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
       tabIndex={focusTarget ? -1 : undefined}
       columnGap="4"
       rowGap="2"
-      alignItems="center"
+      alignItems="flex-start"
       wrap="wrap"
       paddingY="3"
       borderBottomWidth="1px"
-      borderColor="border"
+      borderColor="divider.canvas"
+      _last={{ borderBottomWidth: 0 }}
     >
       <Logo src={instrument.logo} id={id} symbol={instrument.symbol} />
       <Box flex="1" minWidth="0">
         <Flex gap="2" alignItems="baseline" wrap="wrap">
-          <Text fontWeight="semibold">{instrument.symbol}</Text>
+          <Text bg="pill.bg" color="pill.fg" textStyle="bodySm" rounded="full" paddingX="2.5" height="pill" display="inline-flex" alignItems="center">
+            {instrument.symbol}
+          </Text>
           <Text>{instrument.display_name}</Text>
         </Flex>
         <Text color="fg.muted" fontSize="sm">
@@ -94,9 +97,9 @@ export function ResultRow({ instrument, focusTarget }: ResultRowProps) {
       {/* On mobile the badges take their own line, indented past the logo (boxSize 10 plus the 4 gap) to line up with the text. */}
       {(instrument.is_betashares || instrument.is_flagship_fund || instrument.is_auto_invest_included) && (
         <Flex gap="1" wrap="wrap" flexBasis={{ base: 'full', tablet: 'auto' }} paddingStart={{ base: '14', tablet: '0' }} justifyContent={{ base: 'flex-start', tablet: 'flex-end' }}>
-          {instrument.is_betashares && <Badge>Betashares</Badge>}
-          {instrument.is_flagship_fund && <Badge>Flagship</Badge>}
-          {instrument.is_auto_invest_included && <Badge>Auto Invest</Badge>}
+          {instrument.is_betashares && <Badge variant="outline">Betashares</Badge>}
+          {instrument.is_flagship_fund && <Badge variant="outline">Flagship</Badge>}
+          {instrument.is_auto_invest_included && <Badge variant="outline">Auto Invest</Badge>}
         </Flex>
       )}
     </Flex>

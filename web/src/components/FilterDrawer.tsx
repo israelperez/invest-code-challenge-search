@@ -54,6 +54,8 @@ export function FilterDrawer({
             </Drawer.Body>
             <Drawer.Footer>
               <Button
+                variant="outline"
+                size="sm"
                 width="56"
                 maxWidth="full"
                 loading={counts.loading}

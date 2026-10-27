@@ -82,7 +82,7 @@ export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
           <>
             <VisuallyHidden>Loading popular searches</VisuallyHidden>
             {Array.from({ length: shown }, (_, i) => (
-              <Skeleton key={i} aria-hidden data-testid="popular-skeleton-pill" height="9" width={SKELETON_WIDTHS[i % SKELETON_WIDTHS.length]} />
+              <Skeleton key={i} aria-hidden data-testid="popular-skeleton-pill" height="8" rounded="button" width={SKELETON_WIDTHS[i % SKELETON_WIDTHS.length]} />
             ))}
           </>
         )}

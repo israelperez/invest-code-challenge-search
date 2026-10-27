@@ -1,11 +1,11 @@
-import { Box, Button, Flex, Tag } from '@chakra-ui/react';
+import { Box, Button, Flex, chakra } from '@chakra-ui/react';
 import { useRef } from 'react';
 import type { Filters } from '../search/build-search-request';
 import { appliedChips } from '../search/filter-options';
 import { useFacetCounts } from '../search/queries';
 import { RawHint } from '../settings/RawHint';
 
-// Below the tablet breakpoint it stays one line that scrolls sideways; from there up it wraps. Removing a chip or clearing applies at once.
+// The chips wrap onto new lines at every width. Removing a chip or clearing applies at once.
 export function AppliedFilters({
   term,
   applied,
@@ -39,30 +39,34 @@ export function AppliedFilters({
       padding="0"
       gap="2"
       alignItems="center"
-      overflowX={{ base: 'auto', tablet: 'visible' }}
-      flexWrap={{ base: 'nowrap', tablet: 'wrap' }}
+      flexWrap="wrap"
     >
       {chips.map((chip, i) => (
-        <Box as="li" key={chip.id} flexShrink={0}>
-          <Tag.Root size="lg" whiteSpace="nowrap">
-            <Tag.Label>
+        <Box as="li" key={chip.id} minWidth="0" maxWidth="full">
+          {/* Fixed 32px height: a long label is cut with an ellipsis, and the aria-label still names it in full. */}
+          <Button
+            // shortcut: cast because Chakra's generated Button types do not know our `tertiary` variant, switch to `chakra typegen` if more custom variants appear.
+            variant={'tertiary' as 'outline'}
+            size="sm"
+            maxWidth="full"
+            aria-label={`Remove ${chip.label}`}
+            ref={(el: HTMLButtonElement | null) => void (el ? buttons.current.set(chip.id, el) : buttons.current.delete(chip.id))}
+            onClick={() => remove(i)}
+          >
+            <chakra.span truncate>
               {chip.label}
               {chip.raw && <RawHint value={chip.raw} />}
-            </Tag.Label>
-            <Tag.EndElement>
-              <Tag.CloseTrigger
-                aria-label={`Remove ${chip.label}`}
-                ref={(el: HTMLButtonElement | null) => void (el ? buttons.current.set(chip.id, el) : buttons.current.delete(chip.id))}
-                onClick={() => remove(i)}
-              />
-            </Tag.EndElement>
-          </Tag.Root>
+            </chakra.span>
+            <chakra.svg aria-hidden viewBox="0 0 24 24" boxSize="4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" flexShrink={0}>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </chakra.svg>
+          </Button>
         </Box>
       ))}
       <Box as="li" flexShrink={0}>
         <Button
           variant="outline"
-          size="xs"
+          size="sm"
           onClick={() => {
             headingRef.current?.focus();
             onChange({});

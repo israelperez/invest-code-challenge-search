@@ -92,3 +92,15 @@ describe.each([
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2 }));
   });
 });
+
+// The chips are the tertiary button: the result-tag colours on a 32px pill (see theme.test.ts for the recipe).
+it('renders each chip as a tertiary button that still names what it removes (removal itself is covered above)', async () => {
+  await setup(false);
+  const chip = screen.getByRole('button', { name: 'Remove ETFs' });
+  const css = Array.from(document.querySelectorAll('style'), (e) => e.textContent).join('\n');
+  const rules = [...chip.classList].flatMap((c) => [...css.matchAll(new RegExp(`\\.${c}\\s*\\{([^}]*)\\}`, 'g'))].map((m) => m[1])).join(';');
+  expect(rules).toContain('sizes-8');
+  expect(rules).toMatch(/tag-bg/);
+  expect(rules).toMatch(/tag-border/);
+  expect(chip.textContent).toContain('ETFs');
+});
