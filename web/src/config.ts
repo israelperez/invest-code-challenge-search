@@ -46,6 +46,8 @@ export const config = {
   popularMax: 15,
   // settingDescriptions.popularSearchOneLine
   popularSearchOneLine: true,
+  // The popular searches listed under the recent ones when the empty search box is focused.
+  popularInPopup: 5,
   // Feature flag: remember this user's searches and offer them when the input is focused.
   recentSearches: true,
   // settingDescriptions.recentSearchLimit
