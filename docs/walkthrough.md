@@ -17,7 +17,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
    - Skeleton cards show, then results: Betashares instruments first, then A–Z
    - Popular search pills (6 on phones, 8 on tablet, 13 on desktop, set in `popularShown` in `web/src/config.ts`) sit under the input in a "Popular searches" section; the history is a fake one the API seeds on startup, led by Betashares flagships, and with no popular data (or a failed fetch) a "Featured Betashares ETFs" list shows instead
 2. Focus the empty input.
-   - No recent searches yet, so the popup shows only a short hint
+   - No recent searches yet, so the popup shows the top five Popular searches under their own heading
 
 **Proves:** loading states **[AC]**, popular terms surfaced without typing **[AC]**.
 
@@ -27,7 +27,7 @@ Flows to walk through when presenting the POC. Each flow lists the steps, what s
    - Input fills, results update, count shown
    - Console: `[analytics] search_submitted { source: "popular" … }`
 2. Focus the empty input again.
-   - `Gold` now appears under Recent searches
+   - `Gold` now appears under Recent searches, with the Popular searches below it
 
 **Proves:** commonly searched terms guide users **[AC]**; a pill click counts as a search.
 
@@ -230,7 +230,7 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | Decision | Why | Rejected |
 | --- | --- | --- |
 | **Popular search** = most searched across all users; **Recent search** = this user's own history | Different populations, different jobs: guide newcomers vs repeat your own searches | One merged list |
-| Popular shown as pills under the input (6, 8 or 13 by screen size, from one request for 13; with `popularSearchOneLine` on, only the pills that fit on one line show); recent and suggestions in the input's popup | Popular is visible without interaction; the popup stays focused on what the user is typing | Popular inside the popup only |
+| Popular shown as pills under the input before the first search (6, 8 or 13 by screen size, from one request for 13; with `popularSearchOneLine` on, only the pills that fit on one line show), and as the top five in the popup of the empty input, below Recent searches; suggestions in the popup once the user types | Popular is visible without interaction, and still reachable after a search when the pills are gone | Popular as pills only |
 | Suggestions fire after 200ms pause and from 3 characters | Fewer wasted calls. The shortest ticker is 3 characters, so every instrument stays reachable | Firing on every keystroke |
 | Popup has two groups: search terms and instruments | Terms let users refine before completing the query; instruments jump straight to a match | Instruments only |
 | Data reached through seams (`SearchSource`, `SuggestionSource`, `PopularSource`, `RecentSearchStore`) | Real life has thousands of suggested terms and needs a server; swapping an adapter for a real endpoint changes no UI | UI calling the API directly |
@@ -239,7 +239,7 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | Popular terms deduped on an order-insensitive word set, ignoring `and`, `the`, `of`, `for`, `asx`; `OR` and `etf` kept | `VGS vanguard` and `vanguard VGS` are the same search. `OR` is an API operator, `etf` changes results | Exact-string dedupe |
 | Zero-result terms kept in the log, excluded from pills | Zero results is information for Betashares (a product gap), but a dead end for a user | Showing them as pills |
 | Popular fetched once on page load | It's an aggregate that changes slowly; polling adds nothing | Live refresh |
-| Recent searches: saved once the search returns results, last 5, case-insensitive dedupe, not removable, localStorage, updated in memory | A search with no results is a dead end, so the list never offers one. Only searches that found something are kept and the list caps at 5, so old entries drop off by themselves. A × on each entry would need its own popup outside the combobox to stay accessible, which is more work than this needs | Saving keystrokes; saving when the request fires; a × to remove each entry |
+| Recent searches: saved once the search returns results, last 4, case-insensitive dedupe, not removable, localStorage, updated in memory | A search with no results is a dead end, so the list never offers one. Only searches that found something are kept and the list caps at 4, so old entries drop off by themselves. A × on each entry would need its own popup outside the combobox to stay accessible, which is more work than this needs | Saving keystrokes; saving when the request fires; a × to remove each entry |
 
 ### Analytics and insights
 
@@ -293,9 +293,9 @@ What was decided and why, in the order it was settled. Open items are listed at 
 | --- | --- | --- |
 | Theming as a separate phase: build and test on Chakra's default theme first | Separates "does it work" from "does it look right"; semantic tokens only, so theming is config with no component edits | Theming while building |
 | Own `DESIGN.md`, correcting the automated extraction | The extraction had an emoji font as body text, invisible borders and failing contrast | Applying it as-is |
-| `#dc3703` for text and filled buttons, brand `#fc4d16` for non-text accents | `#fc4d16` on white is 3.4:1 and fails WCAG AA for normal text; `#dc3703` passes at 4.6:1 | Brand-exact coral everywhere |
-| Rund Text hotlinked from onlinewebfonts, Inter fallback, never committed | Non-commercial POC for Betashares, who use the font on their own site. The host's licence is unverified, so files are never redistributed and Inter covers outages | Committing the font files (redistribution); Inter only |
-| Inputs 5px radius, buttons 15px, cards 10px | Inputs match the live site; the extraction contradicted itself | The extraction's values |
+| Brand orange `#fc4d16` everywhere, WCAG failures listed and fixed next ([ADR 0005](./adr/0005-match-brand-then-fix-wcag.md)) | Matching the Betashares look exactly was a requirement. Doing it first leaves a measured list of accessibility fixes, each pinned by a test | Softening the brand as I went (no record of what the brand asks for); `#dc3703` text and fills now |
+| Rund Text and Rund Display hotlinked from betashares.com.au, Inter until they load, never committed | Non-commercial POC for Betashares, who use the fonts on their own site. Files are never redistributed, and Inter covers a slow or unreachable host | Committing the font files (redistribution); Inter only |
+| Inputs 5px radius, buttons pill, cards 15px (30px from desktop) | Values read from the live fund page's computed styles; the extraction contradicted itself | The extraction's values |
 
 ### Testing and code structure
 
