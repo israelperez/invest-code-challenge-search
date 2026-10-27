@@ -81,7 +81,7 @@ export function App() {
               onSortChange={setOrderBy}
               headingRef={headingRef}
               appliedFilters={
-                appliedCount(applied) > 0 && (
+                live && appliedCount(applied) > 0 && (
                   <AppliedFilters
                     term={state.term}
                     applied={applied}
