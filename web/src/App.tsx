@@ -66,8 +66,8 @@ export function App() {
   return (
     <>
     <Header />
-    <Container maxWidth="1030px" paddingX="4" paddingY="8">
-      <Heading as="h1" size="2xl" marginBottom="6">
+    <Container maxWidth="container" paddingX="gutter" paddingY="8">
+      <Heading as="h1" size="2xl" textAlign="center" marginBottom="6">
         ASX-listed instrument search
       </Heading>
       <SearchForm onSearch={search} showPopular={term === null} />
@@ -81,7 +81,7 @@ export function App() {
               onSortChange={setOrderBy}
               headingRef={headingRef}
               appliedFilters={
-                appliedCount(applied) > 0 && (
+                live && appliedCount(applied) > 0 && (
                   <AppliedFilters
                     term={state.term}
                     applied={applied}

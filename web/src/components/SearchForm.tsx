@@ -1,4 +1,4 @@
-import { Box, Button, CloseButton, Combobox, Field, Flex, Input, Skeleton, Text, VisuallyHidden, createListCollection, useBreakpointValue } from '@chakra-ui/react';
+import { Box, Button, CloseButton, Combobox, Field, Flex, Input, Skeleton, Text, VisuallyHidden, chakra, createListCollection } from '@chakra-ui/react';
 import { type FormEvent, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { SearchTrigger } from '../analytics/analytics';
 import { config } from '../config';
@@ -41,9 +41,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
   const recentTerms = useSyncExternalStore(recent?.subscribe ?? noSubscribe, recent?.list ?? (() => noTerms));
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle', items: [], for: '' });
   const inputRef = useRef<HTMLInputElement>(null);
-  const rowRef = useRef<HTMLDivElement>(null);
   // Same cast as App.tsx: the generated breakpoint names still say sm..2xl.
-  const tablet = useBreakpointValue({ base: false, tablet: true } as Parameters<typeof useBreakpointValue<boolean>>[0], { ssr: false }) ?? false;
   const enabled = typed.trim().length >= config.suggestionMinChars;
   // Under the suggestion minimum the popup offers recent searches starting with the typed text; from it, suggestions only.
   const recentMode = recent !== null && !enabled;
@@ -104,8 +102,10 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
   return (
     <form onSubmit={submit} role="search">
       <Field.Root id={inputId}>
-        <Field.Label>Search shares and ETFs</Field.Label>
-        <Flex ref={rowRef} gap="2" width="full">
+        <Field.Label fontSize="md" fontWeight="medium">
+          Search shares and ETFs
+        </Field.Label>
+        <Flex width="full">
           <Combobox.Root
             collection={collection}
             ids={{ input: inputId, label: listLabelId }}
@@ -126,18 +126,24 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
               analytics.track('suggestion_selected', { query: typed, value: picked.fill, kind: picked.value.startsWith('term:') ? 'term' : 'instrument' });
               onSearch(picked.fill, 'suggestion');
             }}
-            // Below tablet the list spans the whole row (input and Search button); from tablet up it matches the input.
-            positioning={{ sameWidth: true, getAnchorRect: tablet ? undefined : () => rowRef.current?.getBoundingClientRect() ?? null }}
+            // The Search button sits inside the field, so the list matches the field's full width.
+            positioning={{ sameWidth: true }}
             flex="1"
             minWidth="0"
           >
             <Combobox.Control>
+              <chakra.svg aria-hidden viewBox="0 0 24 24" boxSize="5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" position="absolute" insetStart="4" top="50%" transform="translateY(-50%)" pointerEvents="none" zIndex="1">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </chakra.svg>
               <Combobox.Input asChild>
                 <Input
                   ref={inputRef}
                   placeholder="e.g. A200 or Australia 200"
                   fontSize="md"
-                  paddingEnd="10"
+                  height={{ base: 'field', desktop: 'fieldLarge' }}
+                  paddingStart="12"
+                  paddingEnd="36"
                   maxLength={100}
                   // The combobox reports its value a tick late; a submit or the debounce must not wait for it.
                   onChange={(e) => change(e.target.value)}
@@ -148,19 +154,21 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
                   }}
                 />
               </Combobox.Input>
-              <CloseButton
-                aria-label="Clear search"
-                size="xs"
-                position="absolute"
-                insetEnd="2"
-                top="50%"
-                transform="translateY(-50%)"
-                visibility={value ? 'visible' : 'hidden'}
-                onClick={() => {
-                  change('');
-                  inputRef.current?.focus();
-                }}
-              />
+              {/* Clear and Search sit inside the field, inset from its edge; the input's end padding keeps text from running under them. */}
+              <Flex position="absolute" insetEnd="2" top="50%" transform="translateY(-50%)" alignItems="center" gap="2">
+                <CloseButton
+                  aria-label="Clear search"
+                  size="xs"
+                  visibility={value ? 'visible' : 'hidden'}
+                  onClick={() => {
+                    change('');
+                    inputRef.current?.focus();
+                  }}
+                />
+                <Button type="submit" minWidth="20" fontSize="md" height={{ base: 'fieldInner', desktop: 'fieldInnerLarge' }}>
+                  Search
+                </Button>
+              </Flex>
             </Combobox.Control>
             <Combobox.Positioner>
               <Combobox.Content>
@@ -202,9 +210,6 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
               </Combobox.Content>
             </Combobox.Positioner>
           </Combobox.Root>
-          <Button type="submit" minWidth="24">
-            Search
-          </Button>
         </Flex>
         {/* aria-live rather than role=status: the results already own the page's one status role. Polite, so typing is never interrupted; always mounted so a screen reader picks up the change. */}
         <VisuallyHidden aria-live="polite" data-testid="suggestion-status">

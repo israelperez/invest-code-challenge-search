@@ -27,7 +27,7 @@ async function setup(live: boolean) {
   }
   if (!live) fireEvent.click(await screen.findByRole('button', { name: /^Show \d/ }));
   await waitFor(() => expect(lastResults(api)).toMatchObject({ kind: ['equity', 'etf'] }));
-  await screen.findByRole('list', { name: 'Applied filters' });
+  if (live) await screen.findByRole('list', { name: 'Applied filters' });
   window.matchMedia = mobileMatchMedia;
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
   return api;
@@ -41,10 +41,14 @@ afterEach(() => {
   cleanup();
 });
 
-describe.each([
-  ['in the drawer layout', false],
-  ['beside the results', true],
-])('applied filter chips %s', (_name, live) => {
+// Below the tablet width the Filters drawer is the only place to change filters, so the chip row stays out of the results.
+it('shows no chip row in the drawer layout, even with filters applied', async () => {
+  await setup(false);
+  expect(chipRow()).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Remove ETFs' })).toBeNull();
+});
+
+describe.each([['beside the results', true]])('applied filter chips %s', (_name, live) => {
   it('shows one chip per value, and removing one sends the narrowed request at once', async () => {
     const api = await setup(live);
     expect(within(chipRow()!).getAllByRole('listitem')).toHaveLength(3);
@@ -91,4 +95,16 @@ describe.each([
     expect(chipRow()).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2 }));
   });
+});
+
+// The chips are the tertiary button: the result-tag colours on a 32px pill (see theme.test.ts for the recipe).
+it('renders each chip as a tertiary button that still names what it removes (removal itself is covered above)', async () => {
+  await setup(true);
+  const chip = screen.getByRole('button', { name: 'Remove ETFs' });
+  const css = Array.from(document.querySelectorAll('style'), (e) => e.textContent).join('\n');
+  const rules = [...chip.classList].flatMap((c) => [...css.matchAll(new RegExp(`\\.${c}\\s*\\{([^}]*)\\}`, 'g'))].map((m) => m[1])).join(';');
+  expect(rules).toContain('sizes-8');
+  expect(rules).toMatch(/tag-bg/);
+  expect(rules).toMatch(/tag-border/);
+  expect(chip.textContent).toContain('ETFs');
 });

@@ -16,8 +16,10 @@ const share = () => ({ ...doc('ACME:AU'), display_name: 'Acme Ltd', kind: 'equit
 beforeEach(() => {
   fake.indexedAt = 1;
 });
+const cleanups: Array<() => void> = [];
 afterEach(() => {
   flags.showRawData = false;
+  cleanups.splice(0).forEach((undo) => undo());
   cleanup();
 });
 
@@ -96,13 +98,19 @@ describe('Show raw data in the filter panel', () => {
 });
 
 describe('Show raw data in the applied filter chips', () => {
+  // Chips show beside the results only, so this runs at a wide viewport where the rail applies on its own.
   async function applyChips() {
-    await openPanel();
+    const real = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ ...real(query), matches: true })) as typeof window.matchMedia;
+    cleanups.push(() => void (window.matchMedia = real));
+    renderApp(fakeApi());
+    await search('a');
+    fireEvent.click(await screen.findByRole('button', { name: /^Show all/ }));
+    await waitFor(() => expect((screen.getByRole('checkbox', { name: /ETFs/ }) as HTMLInputElement).disabled).toBe(false));
     for (const box of [screen.getByRole('checkbox', { name: /ETFs/ }), screen.getAllByRole('checkbox', { name: /^Investors Mutual/ })[1]]) {
       fireEvent.click(box);
       await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
     }
-    fireEvent.click(await screen.findByRole('button', { name: /^Show \d/ }));
     return within(await screen.findByRole('list', { name: 'Applied filters' }));
   }
 

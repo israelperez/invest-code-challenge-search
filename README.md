@@ -136,6 +136,24 @@ Then, for each piece of work, I:
 
 Each commit is under my name and ends with a `Co-Authored-By` line naming the model that wrote it.
 
+## Branding and accessibility
+
+The look follows the current Betashares branding and style guide, and matching it was an important requirement. I decided to match it exactly first and fix what falls short of WCAG 2.2 AA afterwards, so the gaps are known and listed here instead of missed.
+
+What fails today, with the worst ratio for each (text needs 4.5:1, large text and outlines need 3:1):
+
+- White text on the brand orange (`#fc4d16`), 3.38:1: the top strip, Search button, ticker pills, "Demo data" badge and checked controls.
+- Orange text and icons on the grey page, 2.90:1: the page title, links and orange labels.
+- Light grey text on light backgrounds, 2.24:1 to 4.19:1: placeholders, and disabled and zero-count filter options.
+- Light outlines on form controls, 1.17:1 to 1.36:1: checkbox, radio and select borders.
+- White inputs with no border on the grey page, 1.17:1: the search field.
+- Text under 16px: pills, badges, tags, helper text, labels, counts and button labels.
+- Hover orange with white text, 4.03:1: the Search button and links.
+
+Everything else passes AA. Body text, muted text and the success, warning and error colours are at least 4.5:1 on both the grey page and the white cards. The search box is built as an accessible combobox (labels, ARIA and keyboard use), with jest-axe checks.
+
+[`DESIGN.md`](./DESIGN.md) has the full list and where each item shows up. Each pair has a test that asserts it still fails by that amount, so the list can't go out of date. The decision is recorded in [ADR 0005](./docs/adr/0005-match-brand-then-fix-wcag.md). The fonts are loaded from the Betashares site and aren't in the repo.
+
 ## Project docs
 
 | File | What's in it |

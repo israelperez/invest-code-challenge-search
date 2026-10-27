@@ -26,11 +26,12 @@ const Count = ({ option, loading }: { option: FilterOption; loading: boolean }) 
 );
 
 // `raw` is the API value to show under Show raw data; the flag checkboxes have none.
-const CheckboxRow = ({ option: o, raw, loading, onChange }: { option: FilterOption; raw?: boolean; loading: boolean; onChange: (next: Filters) => void }) => (
+// `lone` is a top-level flag option: its label is ink, like the group legends beside it, not the muted label of an option inside a list.
+const CheckboxRow = ({ option: o, raw, lone, loading, onChange }: { option: FilterOption; raw?: boolean; lone?: boolean; loading: boolean; onChange: (next: Filters) => void }) => (
   <Checkbox.Root checked={o.selected} disabled={o.disabled} onCheckedChange={() => onChange(o.next)} width="full">
     <Checkbox.HiddenInput />
     <Checkbox.Control />
-    <Checkbox.Label flex="1">
+    <Checkbox.Label flex="1" color={lone ? 'fg' : undefined}>
       {o.label}
       {raw && <RawHint value={o.id} />}
     </Checkbox.Label>
@@ -67,8 +68,8 @@ function IssuerSection({ section, loading, onChange }: { section: FilterSection;
           // Fixed width, so the label change never resizes it.
           <Button
             variant="outline"
-            size="xs"
-            width="28"
+            size="sm"
+            width="32"
             alignSelf="flex-start"
             aria-expanded={expanded}
             aria-controls={listId}
@@ -117,7 +118,7 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
             </Flex>
           </RadioGroup.Root>
         ) : (
-          section.options.map((o) => <CheckboxRow key={o.id} option={o} raw={section.id === 'kind'} loading={loading} onChange={onChange} />)
+          section.options.map((o) => <CheckboxRow key={o.id} option={o} raw={section.id === 'kind'} lone={lone} loading={loading} onChange={onChange} />)
         )}
       </Fieldset.Content>
     </Fieldset.Root>
@@ -138,13 +139,13 @@ export function FilterPanel({
 
   return (
     <Flex direction="column" gap="5">
-      <Button variant="outline" size="sm" alignSelf="flex-start" disabled={key(pending) === key({})} onClick={() => onPendingChange({})}>
+      <Button variant="outline" size="sm" width="28" alignSelf="flex-start" disabled={key(pending) === key({})} onClick={() => onPendingChange({})}>
         Clear filters
       </Button>
       {error && (
         <Flex alignItems="center" gap="2" wrap="wrap">
           <Text fontSize="sm">Couldn't update the counts.</Text>
-          <Button variant="outline" size="xs" onClick={retry}>
+          <Button variant="outline" size="sm" onClick={retry}>
             Retry
           </Button>
         </Flex>

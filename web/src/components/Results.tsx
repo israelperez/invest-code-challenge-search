@@ -11,7 +11,7 @@ import { useSearchBackend } from '../search/search-source-context';
 import { ResultRow } from './ResultRow';
 
 const List = ({ children }: { children: React.ReactNode }) => (
-  <Box as="ul" listStyleType="none" margin="0" padding="0">
+  <Box as="ul" listStyleType="none" margin="0" marginTop="4" paddingTop="6" paddingX={{ base: '4', desktop: '8' }} bg="results" rounded={{ base: 'card', desktop: 'cardLarge' }}>
     {children}
   </Box>
 );

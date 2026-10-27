@@ -34,7 +34,7 @@ export const UNIT_BUCKET_ROWS = 5;
 // Always listed in the Type section, in this order.
 const KNOWN_KINDS = ['etf', 'equity'];
 
-// Shown before Type; portfolio eligibility is shown last.
+// Shown before Type; portfolio eligibility is shown just above the shares-issued section.
 const BETASHARES_FLAGS = [
   { key: 'is_betashares', label: 'Betashares funds only', value: true },
   { key: 'is_flagship_fund', label: 'Flagship funds', value: true },
@@ -181,5 +181,5 @@ export function filterSections(facets: Facets | undefined, filters: Filters, kno
     ],
   };
 
-  return [...BETASHARES_FLAGS.map(flagSection), kindSection, issuerSection, unitsSection, flagSection(PORTFOLIO_FLAG)];
+  return [...BETASHARES_FLAGS.map(flagSection), kindSection, issuerSection, flagSection(PORTFOLIO_FLAG), unitsSection];
 }
