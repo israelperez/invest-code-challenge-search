@@ -6,7 +6,7 @@ import { PopularPills } from './PopularPills';
 import { useSearchBackend } from '../search/search-source-context';
 import type { Suggestions } from '../search/suggestion-source';
 
-type Suggestion = { value: string; group: 'Suggested searches' | 'Matching shares and ETFs' | 'Recent searches'; fill: string; name?: string };
+type Suggestion = { value: string; group: 'Suggested searches' | 'Matching shares and ETFs' | 'Recent searches' | 'Popular searches'; fill: string; name?: string };
 // `for` is the text the items answer; while it differs from what is typed they are not shown.
 type Lookup = { status: 'idle' | 'loading' | 'done' | 'failed'; items: Suggestion[]; for: string };
 
@@ -31,7 +31,7 @@ const noTerms: readonly string[] = [];
 // The list is a popover over the page, so opening it moves nothing either.
 // The popular searches show only before the first search; the results take their place.
 export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string, source: SearchTrigger) => void; showPopular: boolean }) {
-  const { suggestions, recent, analytics } = useSearchBackend();
+  const { suggestions, recent, popular, analytics } = useSearchBackend();
   const inputId = useId();
   const listLabelId = `${inputId}-suggestions`;
   const [value, setValue] = useState('');
@@ -39,6 +39,9 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
   const [typed, setTyped] = useState('');
   const [wantOpen, setWantOpen] = useState(false);
   const recentTerms = useSyncExternalStore(recent?.subscribe ?? noSubscribe, recent?.list ?? (() => noTerms));
+  // Shared with the pills, so this adds no request. A failed or empty fetch leaves the group out.
+  const popularVersion = useSyncExternalStore(popular.subscribe, popular.version);
+  const [popularTerms, setPopularTerms] = useState<readonly string[]>(noTerms);
   const [lookup, setLookup] = useState<Lookup>({ status: 'idle', items: [], for: '' });
   const inputRef = useRef<HTMLInputElement>(null);
   // Same cast as App.tsx: the generated breakpoint names still say sm..2xl.
@@ -51,7 +54,26 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
       ? recentTerms.filter((t) => t.toLowerCase().startsWith(prefix)).map((t): Suggestion => ({ value: `recent:${t}`, group: 'Recent searches', fill: t }))
       : [];
   }, [recentMode, recentTerms, typed]);
+  const popularItems = useMemo(
+    () => (recentMode && typed.trim() === '' ? popularTerms.slice(0, config.popularInPopup).map((t): Suggestion => ({ value: `popular:${t}`, group: 'Popular searches', fill: t })) : []),
+    [recentMode, popularTerms, typed],
+  );
+  const recentOptions = useMemo(() => [...recentItems, ...popularItems], [recentItems, popularItems]);
   const open = wantOpen && (enabled || (recentMode && (typed.trim() === '' || recentItems.length > 0)));
+
+  useEffect(() => {
+    let current = true;
+    popular
+      .terms()
+      .then((found) => current && setPopularTerms(found.map((term) => term.label)))
+      .catch((error) => {
+        console.error('Loading popular searches failed', error);
+        if (current) setPopularTerms(noTerms);
+      });
+    return () => {
+      current = false;
+    };
+  }, [popular, popularVersion]);
 
   // Each keystroke restarts the debounce and aborts whatever is in flight.
   useEffect(() => {
@@ -84,8 +106,8 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
   // Items answer `lookup.for`; while the typed text has moved on they are not rendered, so they cannot be picked.
   const fresh = lookup.for === typed.trim();
   const collection = useMemo(
-    () => createListCollection({ items: recentMode ? recentItems : fresh ? lookup.items : [], groupBy: (item) => item.group, itemToString: (item) => item.fill }),
-    [lookup.items, fresh, recentMode, recentItems],
+    () => createListCollection({ items: recentMode ? recentOptions : fresh ? lookup.items : [], groupBy: (item) => item.group, itemToString: (item) => item.fill }),
+    [lookup.items, fresh, recentMode, recentOptions],
   );
 
   function submit(event: FormEvent) {
@@ -123,6 +145,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
               setWantOpen(false);
               // A recent pick re-runs a past search; it is not a suggestion.
               if (picked.value.startsWith('recent:')) return onSearch(picked.fill, 'recent');
+              if (picked.value.startsWith('popular:')) return onSearch(picked.fill, 'popular');
               analytics.track('suggestion_selected', { query: typed, value: picked.fill, kind: picked.value.startsWith('term:') ? 'term' : 'instrument' });
               onSearch(picked.fill, 'suggestion');
             }}
@@ -173,7 +196,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
             <Combobox.Positioner>
               <Combobox.Content>
                 {/* Names the listbox; the visible label belongs to the input. */}
-                <VisuallyHidden id={listLabelId}>{recentMode ? 'Recent searches' : 'Suggestions'}</VisuallyHidden>
+                <VisuallyHidden id={listLabelId}>{recentMode ? (popularItems.length ? 'Recent and popular searches' : 'Recent searches') : 'Suggestions'}</VisuallyHidden>
                 {/* Combobox.Empty, not plain text: Chakra hides an open list with no items unless it holds one. */}
                 <Combobox.Empty paddingX="3" paddingY="2" color="fg.muted">
                   {recentMode ? (
@@ -213,7 +236,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
         </Flex>
         {/* aria-live rather than role=status: the results already own the page's one status role. Polite, so typing is never interrupted; always mounted so a screen reader picks up the change. */}
         <VisuallyHidden aria-live="polite" data-testid="suggestion-status">
-          {recentMode && open ? (recentItems.length ? `${recentItems.length} recent search${recentItems.length === 1 ? '' : 'es'}` : 'No recent searches yet') : announcement(lookup)}
+          {recentMode && open ? (recentOptions.length ? `${recentOptions.length} search${recentOptions.length === 1 ? '' : 'es'}` : 'No recent searches yet') : announcement(lookup)}
         </VisuallyHidden>
         {/* Helper text, not a placeholder: it stays visible while typing and wraps on narrow phones. */}
         <Field.HelperText>Search by ASX code (ticker) or name</Field.HelperText>

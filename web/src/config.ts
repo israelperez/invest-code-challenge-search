@@ -46,10 +46,12 @@ export const config = {
   popularMax: 15,
   // settingDescriptions.popularSearchOneLine
   popularSearchOneLine: true,
+  // The popular searches listed under the recent ones when the empty search box is focused.
+  popularInPopup: 5,
   // Feature flag: remember this user's searches and offer them when the input is focused.
   recentSearches: true,
   // settingDescriptions.recentSearchLimit
-  recentSearchLimit: 5,
+  recentSearchLimit: 4,
   // Feature flag: the Insights tab in the gear panel (development only: on under `vite` and Vitest, off in a production build; also needs the API's ENABLE_INSIGHTS).
   insightsEnabled: import.meta.env.DEV,
   // Feature flag: the Settings tab in the gear panel (development only, like insightsEnabled).

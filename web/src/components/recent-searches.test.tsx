@@ -2,7 +2,8 @@
 import '../../tests/component/jsdom-setup';
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi, type MockedFunction } from 'vitest';
+import type { Analytics } from '../analytics/analytics';
 import { deferred, fake, fakeApi, freshRecentStore, renderApp, search, type FakeApi } from '../../tests/component/app-harness';
 import { config } from '../config';
 import type { RecentSearchStore } from '../search/recent-search-store';
@@ -19,12 +20,17 @@ const documentRequests = (api: FakeApi) => api.searchIndex.mock.calls.map(([b]) 
 
 let api: FakeApi;
 let recent: RecentSearchStore;
-function setup(terms: string[] = [], options: { flagOff?: boolean } = {}) {
+let track: MockedFunction<Analytics['track']>;
+const popularResponse = (labels: string[]) => ({ terms: labels.map((label, i) => ({ label, key: label.toLowerCase(), clients: 20 - i })), includes_seed_data: true as const });
+// The popular searches are empty unless a test names them, so the recent-only tests see only recent searches.
+function setup(terms: string[] = [], options: { flagOff?: boolean; popular?: string[] } = {}) {
   fake.indexedAt = 1;
   api = fakeApi();
+  api.popular.mockResolvedValue(popularResponse(options.popular ?? []));
   recent = freshRecentStore();
   [...terms].reverse().forEach(recent.add);
-  renderApp(api, { recent: options.flagOff ? null : recent });
+  track = vi.fn<Analytics['track']>();
+  renderApp(api, { recent: options.flagOff ? null : recent, analytics: { track } });
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 }
 // The combobox starts listening for Escape and outside clicks on the next animation frame.
@@ -230,5 +236,96 @@ describe('Saving a recent search', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'A200' }));
 
     await waitFor(() => expect(recent.list()).toEqual(['A200']));
+  });
+});
+
+describe('Popular searches in the empty-search popup', () => {
+  const popular = ['A200', 'NDQ', 'QAU', 'DHHF', 'HQLT', 'BGBL', 'IOZ'];
+  const groups = () => within(listbox()).getAllByRole('group', { hidden: true }).map((g) => g.getAttribute('aria-label') ?? within(g).getByText(/searches$/).textContent);
+
+  it('lists Recent searches, then the top 5 Popular searches, in one popup', async () => {
+    setup(['Vanguard'], { popular });
+    await focus();
+
+    expect(groups()).toEqual(['Recent searches', 'Popular searches']);
+    expect(options()).toEqual(['Vanguard', 'A200', 'NDQ', 'QAU', 'DHHF', 'HQLT']);
+  });
+
+  it('shows the popular group alone when nothing was searched yet', async () => {
+    setup([], { popular });
+    await focus();
+
+    expect(groups()).toEqual(['Popular searches']);
+    expect(within(listbox()).queryByText('No recent searches yet')).toBeNull();
+  });
+
+  it('leaves the popular group out for 1-2 typed characters and for suggestions', async () => {
+    setup(['A200'], { popular });
+    await focus();
+
+    await type('a');
+    expect(groups()).toEqual(['Recent searches']);
+    await type('van');
+    expect(within(listbox()).queryByText('Popular searches')).toBeNull();
+  });
+
+  it('runs the search and reports the popular trigger when a popular item is picked', async () => {
+    setup([], { popular });
+    await focus();
+    vi.useRealTimers();
+
+    fireEvent.click(screen.getByRole('option', { name: 'NDQ' }));
+
+    await screen.findByRole('heading', { level: 2 });
+    expect(input().value).toBe('NDQ');
+    expect(documentRequests(api)[0].search_text).toBe('NDQ');
+    expect(api.logSearch).toHaveBeenCalledWith('NDQ', expect.any(String), expect.any(String));
+    expect(track).toHaveBeenCalledWith('search_submitted', { term: 'NDQ', source: 'popular' });
+  });
+
+  it('keeps the recent group when the popular fetch fails, with no error text', async () => {
+    setup(['Vanguard']);
+    api.popular.mockRejectedValue(new Error('down'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    await focus();
+
+    expect(groups()).toEqual(['Recent searches']);
+    expect(options()).toEqual(['Vanguard']);
+    expect(within(listbox()).queryByText(/unavailable|error|failed/i)).toBeNull();
+  });
+
+  it('keeps the recent hint when the popular result is empty', async () => {
+    setup();
+    await focus();
+
+    expect(within(listbox()).getByText('No recent searches yet')).toBeTruthy();
+  });
+
+  it('announces the items from both groups', async () => {
+    setup(['Vanguard'], { popular });
+    await focus();
+
+    expect(screen.getByTestId('suggestion-status').textContent).toBe('6 searches');
+  });
+
+  it('moves with the arrow keys across both groups', async () => {
+    setup(['Vanguard'], { popular });
+    await focus();
+
+    for (let i = 0; i < 2; i++) {
+      fireEvent.keyDown(input(), { key: 'ArrowDown' });
+      await tick(0);
+    }
+
+    const active = input().getAttribute('aria-activedescendant');
+    expect(document.getElementById(active!)?.textContent).toBe('A200');
+  });
+
+  it('passes axe with both groups showing', async () => {
+    setup(['Vanguard'], { popular });
+    await focus();
+    vi.useRealTimers();
+
+    expect((await axe(document.body, { rules: { region: { enabled: false } } })).violations).toEqual([]);
   });
 });

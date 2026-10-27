@@ -153,8 +153,10 @@ describe('Popular search pills', () => {
         includes_seed_data: true,
       });
       renderApp(api);
-      await screen.findByText('T0');
-      return Array.from({ length: 8 }, (_, i) => screen.getByText(`T${i}`).closest('button')!);
+      // The closed search popup also holds the top popular terms, so the pills are found inside their own section.
+      const pills = within(await screen.findByRole('region', { name: 'Popular searches' }));
+      await pills.findByText('T0');
+      return Array.from({ length: 8 }, (_, i) => pills.getByText(`T${i}`).closest('button')!);
     }
 
     it('makes the pills that wrap inert and hidden from assistive tech, and no others', async () => {
