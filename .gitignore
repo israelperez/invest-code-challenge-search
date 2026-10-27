@@ -7,3 +7,4 @@ coverage/
 .claude/settings.local.json
 api/data/search-log.json
 api/data/search-log.json.tmp
+docs/handoffs/
