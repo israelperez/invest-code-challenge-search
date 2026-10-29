@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAnalytics } from '../analytics/analytics';
-import { consoleReport } from '../search/report';
 import { countProblems, createProblemCounter, DISTINCT_CAP } from './problem-counter';
 
 afterEach(() => vi.restoreAllMocks());
@@ -12,7 +11,7 @@ describe('problem counter', () => {
     counter.record('logo_failed');
     counter.record('batch_incomplete');
     const s = counter.getSnapshot();
-    expect([s.logo_failed?.count, s.batch_incomplete?.count, s.load_more_failed]).toEqual([2, 1, undefined]);
+    expect([s.logo_failed?.count, s.batch_incomplete?.count, s.api_call_failed]).toEqual([2, 1, undefined]);
   });
 
   it('keeps the affected entries, each distinct one once, in first-seen order', () => {
@@ -54,10 +53,10 @@ describe('problem counter', () => {
     const counter = createProblemCounter();
     const listener = vi.fn();
     const unsubscribe = counter.subscribe(listener);
-    counter.record('load_more_failed');
+    counter.record('api_call_failed');
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
-    counter.record('load_more_failed');
+    counter.record('api_call_failed');
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
@@ -65,7 +64,7 @@ describe('problem counter', () => {
     const counter = createProblemCounter();
     expect(counter.getSnapshot()).toBe(counter.getSnapshot());
     const before = counter.getSnapshot();
-    counter.record('restart_failed');
+    counter.record('logo_failed');
     expect(counter.getSnapshot()).not.toBe(before);
     expect(before).toEqual({});
   });
@@ -80,12 +79,12 @@ describe('problem counter', () => {
 });
 
 describe('countProblems', () => {
-  it.each([true, false])('counts, keeps entries and still forwards to the sink with analytics %s', (enabled) => {
+  it('counts, keeps entries and still forwards to the sink', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const counter = createProblemCounter();
-    const sink = enabled ? createAnalytics({ enabled }).report : consoleReport;
-    countProblems(counter, sink)('first_batch_failed', { level: 'error', message: 'failed', entries: ['etf: Failed to fetch'] });
-    expect(counter.getSnapshot().first_batch_failed).toEqual({ count: 1, entries: ['etf: Failed to fetch'], distinct: 1 });
+    const sink = createAnalytics().report;
+    countProblems(counter, sink)('api_call_failed', { level: 'error', message: 'failed', entries: ['etf: Failed to fetch'] });
+    expect(counter.getSnapshot().api_call_failed).toEqual({ count: 1, entries: ['etf: Failed to fetch'], distinct: 1 });
     expect(error).toHaveBeenCalledTimes(1);
   });
 });

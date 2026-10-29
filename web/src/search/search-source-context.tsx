@@ -17,9 +17,9 @@ type SearchBackend = {
   recent: RecentSearchStore | null;
   // Logs an explicit search to the server; never blocks the results.
   logSearch: (term: string) => void;
-  // Product events; does nothing when the analytics flag is off.
+  // Product events (always on; the console stands in for an error-handling service).
   analytics: Analytics;
-  // Where data and API problems go: analytics when its flag is on, else the console.
+  // Where data and API problems go: analytics, always.
   report: Report;
   // Per-session problem counts, fed by every report call.
   problems: ProblemCounter;

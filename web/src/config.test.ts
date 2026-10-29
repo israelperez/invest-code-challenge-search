@@ -12,8 +12,8 @@ describe('config', () => {
     expect(config.idLimit).toBeLessThanOrEqual(1000);
   });
 
-  it('checks the version every 60 seconds of staleness', () => {
-    expect(config.versionStaleTimeMs).toBe(60_000);
+  it('trusts the last version check for 10 minutes', () => {
+    expect(config.versionStaleTimeMs).toBe(600_000);
   });
 
   it('keeps search results fresh forever until indexed_at changes', () => {

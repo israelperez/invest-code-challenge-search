@@ -8,8 +8,7 @@ import { config, settingDescriptions } from '../config';
 import { fakeApi, renderApp } from '../../tests/component/app-harness';
 import { STORAGE_KEY } from './settings';
 
-const flags = config as { settingsEnabled: boolean; insightsEnabled: boolean };
-const original = { ...config } as typeof config & typeof flags;
+const original = { ...config };
 const reload = vi.fn();
 
 beforeEach(() => {
@@ -18,7 +17,7 @@ beforeEach(() => {
   vi.stubGlobal('location', { ...window.location, reload });
 });
 afterEach(() => {
-  Object.assign(flags, original);
+  Object.assign(config, original);
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -37,33 +36,63 @@ async function openSettings(api = fakeApi()) {
 const confirmDialog = async (title: RegExp) => within(await screen.findByRole('alertdialog', { name: title }));
 
 describe('Settings tab', () => {
-  it('shows the seven fields with the config descriptions as help text', async () => {
+  it('shows the original fields with the config descriptions as help text', async () => {
     await openSettings();
 
     for (const label of [...LABELS, 'Show raw data']) expect(screen.getByLabelText(label)).toBeTruthy();
     for (const text of Object.values(settingDescriptions)) expect(screen.getByText(text)).toBeTruthy();
   });
 
-  it('is absent when the settingsEnabled flag is off, and Insights becomes the one tab', async () => {
-    flags.settingsEnabled = false;
-    renderApp(fakeApi());
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-
-    expect(await screen.findByRole('tab', { name: 'Insights' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'Settings' })).toBeNull();
-  });
-
-  it('opens on Settings when Insights is off', async () => {
-    flags.insightsEnabled = false;
-    renderApp(fakeApi());
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-
-    expect(await screen.findByLabelText('Results per load')).toBeTruthy();
-  });
-
-  it('has no suggestion delay field', async () => {
+  it('shows every editable setting, grouped under headings, and not searchStaleTimeMs', async () => {
     await openSettings();
-    expect(screen.queryByLabelText(/suggestion delay/i)).toBeNull();
+    for (const label of ['Suggestion delay (ms)', 'API address', 'Maximum popular pills on any screen', 'Orphan size', 'Maximum IDs per search', 'Remember recent searches']) expect(screen.getByLabelText(label)).toBeTruthy();
+    for (const label of ['Show the Insights tab', 'Show data problems in Insights', 'Send analytics events']) expect(screen.queryByLabelText(label)).toBeNull();
+    for (const name of ['Results', 'Suggestions', 'Popular and recent searches', 'API']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Development features' })).toBeNull();
+    expect(screen.queryByLabelText(/stale/i)).toBeNull();
+  });
+
+  it('saves a URL, a toggle and a number from the footer button, outside the form', async () => {
+    await openSettings();
+    const save = screen.getByRole('button', { name: 'Save and reload' });
+    expect(save.closest('form')).toBeNull();
+    fireEvent.change(screen.getByLabelText('API address'), { target: { value: ' https://api.example.com ' } });
+    fireEvent.change(screen.getByLabelText('Maximum IDs per search'), { target: { value: '200' } });
+    fireEvent.click(screen.getByLabelText('Remember recent searches'));
+    await waitFor(() => expect((screen.getByLabelText('Remember recent searches') as HTMLInputElement).checked).toBe(false));
+    fireEvent.click(save);
+
+    expect(stored()).toEqual({ apiBaseUrl: 'https://api.example.com', idLimit: 200, recentSearches: false });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps the pills to the typed Maximum popular pills on any screen, and orphanSize below Results per load', async () => {
+    await openSettings();
+    fireEvent.change(screen.getByLabelText('Maximum popular pills on any screen'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Results per load'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Orphan size'), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and reload' }));
+
+    expect(stored()).toEqual({ popularMax: 5, popularMobile: 5, popularTablet: 5, popularDesktop: 5, documentLimit: 2, orphanSize: 1 });
+  });
+
+  it('falls back to the defaults when the stored ones are invalid', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ apiBaseUrl: 'ftp://nope' }));
+    await openSettings();
+    expect((screen.getByLabelText('API address') as HTMLInputElement).value).toBe(original.apiBaseUrl);
+  });
+
+  it('puts the Save button in the drawer footer only on the Settings tab', async () => {
+    renderApp(fakeApi());
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+    expect(await screen.findByRole('tab', { name: 'Insights' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save and reload' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    expect(await screen.findByRole('button', { name: 'Save and reload' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save and reload' })).toBeNull());
   });
 
   it('shows the one-line toggle after the popular sizes, on by default, and stores it only when turned off', async () => {
@@ -205,27 +234,6 @@ describe('Settings tab', () => {
 });
 
 describe('Reset popular searches', () => {
-  it('Clear asks first, and cancelling does nothing', async () => {
-    const api = await openSettings();
-    fireEvent.click(screen.getByRole('button', { name: 'Clear popular searches' }));
-    fireEvent.click((await confirmDialog(/clear popular searches/i)).getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    expect(api.clearSearchLog).not.toHaveBeenCalled();
-  });
-
-  it('Clear, once confirmed, calls the API, says so and refetches the popular searches', async () => {
-    const api = await openSettings();
-    await screen.findByRole('button', { name: 'A200', hidden: true });
-    expect(api.popular).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear popular searches' }));
-    fireEvent.click((await confirmDialog(/clear popular searches/i)).getByRole('button', { name: 'Clear popular searches' }));
-
-    expect(await screen.findByText('Popular searches cleared.')).toBeTruthy();
-    expect(api.clearSearchLog).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(api.popular).toHaveBeenCalledTimes(2));
-  });
-
   it('Restore demo popular searches asks first, then calls the API', async () => {
     const api = await openSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Restore demo popular searches' }));
@@ -243,10 +251,10 @@ describe('Reset popular searches', () => {
 
   it('explains a 404 as the API having its development routes off', async () => {
     const api = fakeApi();
-    api.clearSearchLog.mockRejectedValue(new ApiError(404, 'not found'));
+    api.restoreSeed.mockRejectedValue(new ApiError(404, 'not found'));
     await openSettings(api);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear popular searches' }));
-    fireEvent.click((await confirmDialog(/clear popular searches/i)).getByRole('button', { name: 'Clear popular searches' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore demo popular searches' }));
+    fireEvent.click((await confirmDialog(/restore demo popular searches/i)).getByRole('button', { name: 'Restore demo popular searches' }));
 
     expect(await screen.findByText(/ENABLE_INSIGHTS/)).toBeTruthy();
   });

@@ -1,12 +1,31 @@
 import { Alert, Button, Flex, Checkbox, Dialog, Field, Heading, Input, Portal, Stack, Text } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Fragment, useId, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { ApiError } from '../api/client';
 import { config, settingDescriptions } from '../config';
 import { useSearchBackend } from '../search/search-source-context';
-import { BOOLEAN_KEYS, NUMBER_FIELDS, effective, loadOverrides, overridesFromForm, resetOverrides, saveOverrides, type BooleanKey, type NumberKey } from './settings';
+import { BOOLEAN_KEYS, NUMBER_FIELDS, STRING_FIELDS, effective, loadOverrides, maxFor, overridesFromForm, resetOverrides, saveOverrides, type BooleanKey, type NumberKey, type StringKey } from './settings';
+
+// The Save button sits in the drawer footer, outside the form, and finds it by this id.
+export const SETTINGS_FORM_ID = 'settings-form';
 
 type Message = { status: 'success' | 'error'; text: string };
+
+const TOGGLE_LABELS: Record<BooleanKey, string> = {
+  popularSearchOneLine: 'Keep popular pills on one line',
+  showRawData: 'Show raw data',
+  recentSearches: 'Remember recent searches',
+};
+
+// What the demo presenter can change, by area. Every editable key appears once.
+const GROUPS: { title: string; keys: (NumberKey | BooleanKey | StringKey)[] }[] = [
+  { title: 'Results', keys: ['documentLimit', 'orphanSize', 'idLimit', 'skeletonRows', 'featuredIssuers', 'versionStaleTimeMs', 'showRawData'] },
+  { title: 'Suggestions', keys: ['suggestionMinChars', 'suggestionTermLimit', 'suggestionDebounceMs', 'suggestionSkeletonRows'] },
+  { title: 'Popular and recent searches', keys: ['popularMax', 'popularMobile', 'popularTablet', 'popularDesktop', 'popularSearchOneLine', 'popularInPopup', 'recentSearches', 'recentSearchLimit'] },
+  { title: 'API', keys: ['apiBaseUrl', 'apiRetries', 'apiRetryBaseMs', 'apiTimeoutMs'] },
+];
+const isNumber = (key: string): key is NumberKey => key in NUMBER_FIELDS;
+const isBoolean = (key: string): key is BooleanKey => (BOOLEAN_KEYS as readonly string[]).includes(key);
 
 // Saving or resetting reloads the page: config is read once at startup, so the new values land everywhere at once.
 export function SettingsTab() {
@@ -15,6 +34,7 @@ export function SettingsTab() {
   const active = Object.keys(initial).length;
   const [values, setValues] = useState(() => Object.fromEntries((Object.keys(NUMBER_FIELDS) as NumberKey[]).map((key) => [key, String(initial[key] ?? effective(key))])) as Record<NumberKey, string>);
   const [flags, setFlags] = useState(() => Object.fromEntries(BOOLEAN_KEYS.map((key) => [key, initial[key] ?? config[key]])) as Record<BooleanKey, boolean>);
+  const [texts, setTexts] = useState<Record<StringKey, string>>({ apiBaseUrl: initial.apiBaseUrl ?? config.apiBaseUrl });
   const [message, setMessage] = useState<Message | null>(null);
 
   const toggle = (key: BooleanKey, label: string) => (
@@ -24,6 +44,26 @@ export function SettingsTab() {
         <Checkbox.Control />
         <Checkbox.Label>{label}</Checkbox.Label>
       </Checkbox.Root>
+      <Field.HelperText>{settingDescriptions[key]}</Field.HelperText>
+    </Field.Root>
+  );
+
+  const numberField = (key: NumberKey) => {
+    // The bound the field is clamped to, following popularMax and documentLimit as typed.
+    const max = maxFor(key, (k) => (Number.isFinite(Number(values[k])) && values[k].trim() ? Number(values[k]) : effective(k)));
+    return (
+      <Field.Root>
+        <Field.Label>{NUMBER_FIELDS[key].label}</Field.Label>
+        <Input type="number" inputMode="numeric" fontSize="md" min={NUMBER_FIELDS[key].min} max={max} value={values[key]} onChange={(e) => setValues({ ...values, [key]: e.target.value })} />
+        <Field.HelperText>{settingDescriptions[key]}</Field.HelperText>
+      </Field.Root>
+    );
+  };
+
+  const textField = (key: StringKey) => (
+    <Field.Root>
+      <Field.Label>{STRING_FIELDS[key].label}</Field.Label>
+      <Input type="text" inputMode={key === 'apiBaseUrl' ? 'url' : 'text'} fontSize="md" value={texts[key]} onChange={(e) => setTexts({ ...texts, [key]: e.target.value })} />
       <Field.HelperText>{settingDescriptions[key]}</Field.HelperText>
     </Field.Root>
   );
@@ -50,25 +90,21 @@ export function SettingsTab() {
 
       {/* noValidate: out-of-range numbers are clamped on save, not blocked by the browser. */}
       <Stack asChild gap="4">
-      <form noValidate onSubmit={(e) => {
+      <form id={SETTINGS_FORM_ID} noValidate onSubmit={(e) => {
         e.preventDefault();
-        if (saveOverrides(overridesFromForm(values, flags))) location.reload();
+        if (saveOverrides(overridesFromForm(values, flags, texts))) location.reload();
         else setMessage({ status: 'error', text: 'Could not save the settings: this browser is blocking local storage.' });
       }}>
-        {(Object.keys(NUMBER_FIELDS) as NumberKey[]).map((key) => (
-          <Fragment key={key}>
-            <Field.Root>
-              <Field.Label>{NUMBER_FIELDS[key].label}</Field.Label>
-              <Input type="number" inputMode="numeric" fontSize="md" min={NUMBER_FIELDS[key].min} max={NUMBER_FIELDS[key].max} value={values[key]} onChange={(e) => setValues({ ...values, [key]: e.target.value })} />
-              <Field.HelperText>{settingDescriptions[key]}</Field.HelperText>
-            </Field.Root>
-            {key === 'popularDesktop' && toggle('popularSearchOneLine', 'Keep popular pills on one line')}
-          </Fragment>
+        {GROUPS.map((group, index) => (
+          <Stack asChild gap="4" key={group.title}>
+            <section aria-labelledby={`settings-group-${index}`}>
+              <Heading as="h3" size="sm" id={`settings-group-${index}`}>
+                {group.title}
+              </Heading>
+              {group.keys.map((key) => (isBoolean(key) ? <div key={key}>{toggle(key, TOGGLE_LABELS[key])}</div> : isNumber(key) ? <div key={key}>{numberField(key)}</div> : <div key={key}>{textField(key)}</div>))}
+            </section>
+          </Stack>
         ))}
-        {toggle('showRawData', 'Show raw data')}
-        <Stack gap="2">
-          <Button type="submit">Save and reload</Button>
-        </Stack>
       </form>
       </Stack>
 
@@ -105,14 +141,7 @@ function ResetPopularSearches({ onDone }: { onDone: (message: Message) => void }
       <Heading as="h3" size="sm">
         Reset popular searches
       </Heading>
-      <Text color="fg.muted">These buttons change the shared search log that feeds the popular pills and the Insights tab. Clearing it makes the pills fall back to the featured Betashares ETFs and empties Insights.</Text>
-      <Confirm
-        trigger="Clear popular searches"
-        help="Empties the search log. The popular pills fall back to the featured Betashares ETFs."
-        title="Clear popular searches?"
-        body="Every recorded search is deleted for everyone using this API."
-        onConfirm={run(api.clearSearchLog, 'Popular searches cleared.')}
-      />
+      <Text color="fg.muted">This button changes the shared search log that feeds the popular pills and the Insights tab.</Text>
       <Confirm
         trigger="Restore demo popular searches"
         help="Replaces the search log with the demo history, including the zero-result terms in Insights. Anything searched since is lost."

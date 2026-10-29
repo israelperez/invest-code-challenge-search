@@ -24,7 +24,7 @@ It accepts requests from any origin, so a frontend on `http://localhost:3000` ca
 | GET | `/version` | The current `indexed_at`, to spot a restarted API |
 | GET | `/popular` | The most searched terms that return results |
 | GET | `/insights/zero-results` | Searches that found nothing, grouped by term |
-| DELETE | `/search-log` | Empty the search log (development only) |
+| DELETE | `/search-log` | Empty the search log (development only; nothing in the web app calls it now) |
 | POST | `/search-log/restore-seed` | Put the seeded history back (development only) |
 | POST | `/facets/:key` | Filter options with counts, e.g. `/facets/kind` |
 | GET | `/facets/keys` | The facet keys you can request |
@@ -245,7 +245,7 @@ curl 'localhost:8787/insights/zero-results'
 
 ## Reset popular searches
 
-`DELETE /search-log` empties the search log (Clear popular searches) and `POST /search-log/restore-seed` replaces it with the history in `data/popular-seed.json` (Restore demo popular searches). Both answer `204`, save the log file straight away and take no query parameters or body fields (anything else returns `400`).
+`DELETE /search-log` empties the search log (the web app's Clear popular searches button was removed on 2026-10-30; the route stays as a development route, and nothing calls it now) and `POST /search-log/restore-seed` replaces it with the history in `data/popular-seed.json` (Restore demo popular searches). Both answer `204`, save the log file straight away and take no query parameters or body fields (anything else returns `400`).
 
 ```bash
 curl -X DELETE localhost:8787/search-log                 # popular searches and insights are now empty

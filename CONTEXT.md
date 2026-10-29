@@ -23,7 +23,7 @@ _Avoid_: Provider, manager, fund house
 ### Guiding the query
 
 **Search**:
-A term the user submits (typed, or picked from a suggestion, popular search or recent search). Only searches count towards popular searches and become recent searches.
+A term the user submits (typed, or picked from a suggestion, popular search or recent search). Only searches count towards popular searches and become recent searches. _Changed 2026-10-29 (Israel, docs synced to the code): a search becomes a recent search only once it returns results, so a dead end is never offered again._
 _Avoid_: Lookup, find, query (for the submitted act)
 
 **Refinement**:

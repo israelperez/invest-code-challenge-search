@@ -66,8 +66,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
     popular
       .terms()
       .then((found) => current && setPopularTerms(found.map((term) => term.label)))
-      .catch((error) => {
-        console.error('Loading popular searches failed', error);
+      .catch(() => {
         if (current) setPopularTerms(noTerms);
       });
     return () => {
@@ -91,9 +90,8 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
           if (!controller.signal.aborted) setLookup({ status: 'done', items: toItems(found), for: text });
         })
         .catch((error) => {
-          // An aborted lookup is superseded: no state change, no log.
+          // An aborted lookup is superseded: no state change. The API client has already reported a real failure.
           if (controller.signal.aborted) return;
-          console.error('Loading suggestions failed', error);
           setLookup({ status: 'failed', items: [], for: text });
         });
     }, config.suggestionDebounceMs);
@@ -109,6 +107,13 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
     () => createListCollection({ items: recentMode ? recentOptions : fresh ? lookup.items : [], groupBy: (item) => item.group, itemToString: (item) => item.fill }),
     [lookup.items, fresh, recentMode, recentOptions],
   );
+
+  // The listbox's spoken name: each group with its size, since a screen reader counts the groups, not the options inside them.
+  const listName =
+    collection
+      .group()
+      .map(([group, items]) => `${group}, ${items.length} ${group === 'Matching shares and ETFs' ? (items.length === 1 ? 'instrument' : 'instruments') : items.length === 1 ? 'term' : 'terms'}`)
+      .join(' and ') || (recentMode ? 'Recent searches' : 'Suggestions');
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -193,10 +198,10 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
                 </Button>
               </Flex>
             </Combobox.Control>
+            {/* Names the listbox; the visible label belongs to the input. Outside the listbox, so a screen reader's item count isn't inflated by it. */}
+            <VisuallyHidden id={listLabelId}>{listName}</VisuallyHidden>
             <Combobox.Positioner>
               <Combobox.Content>
-                {/* Names the listbox; the visible label belongs to the input. */}
-                <VisuallyHidden id={listLabelId}>{recentMode ? (popularItems.length ? 'Recent and popular searches' : 'Recent searches') : 'Suggestions'}</VisuallyHidden>
                 {/* Combobox.Empty, not plain text: Chakra hides an open list with no items unless it holds one. */}
                 <Combobox.Empty paddingX="3" paddingY="2" color="fg.muted">
                   {recentMode ? (

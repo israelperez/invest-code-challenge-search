@@ -1,6 +1,6 @@
 import './jsdom-setup';
 import { ChakraProvider } from '@chakra-ui/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ContextType } from 'react';
 import { vi } from 'vitest';
@@ -12,6 +12,7 @@ import type {
   SearchIndexRequest,
   SuggestInstrumentsRequest,
 } from '../../src/api/types';
+import { createQueryClient } from '../../src/api/query-client';
 import { createProblemCounter, type ProblemCounter } from '../../src/insights/problem-counter';
 import type { Analytics } from '../../src/analytics/analytics';
 import { config, popularRequestLimit } from '../../src/config';
@@ -93,7 +94,6 @@ export function fakeApi() {
       ],
       includes_seed_data: true as const,
     })),
-    clearSearchLog: vi.fn(async () => undefined),
     restoreSeed: vi.fn(async () => undefined),
     logSearch: vi.fn(async (_term: string, _submissionId: string, _clientId: string) => undefined),
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),
@@ -150,7 +150,7 @@ export function renderApp(
   { recent = freshRecentStore(), analytics = { track: vi.fn() }, report = vi.fn(), problems = createProblemCounter() }: { recent?: RecentSearchStore | null; analytics?: Analytics; report?: Report; problems?: ProblemCounter } = {},
 ) {
   const source = createSearchSource(api, { documentLimit: config.documentLimit, orphanSize: config.orphanSize, idLimit: config.idLimit, report });
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = createQueryClient();
   render(
     <ChakraProvider value={system}>
       <QueryClientProvider client={queryClient}>

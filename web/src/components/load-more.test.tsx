@@ -2,10 +2,17 @@
 import '../../tests/component/jsdom-setup';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/client';
+import { ApiError, createApiClient } from '../api/client';
 import { catalogues, deferred, doc, fake, fakeApi, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
 import { config } from '../config';
+import type { Report } from '../search/report';
 
+const MESSAGE_TITLE = 'The app seems to be experiencing issues';
+const MESSAGE_BODY = 'Try again in a moment.';
+// Reports that ADR 0007 removed: the gateway's major_failure covers them.
+const removedEvents = (report: Report) => vi.mocked(report).mock.calls.filter(([event]) => (['first_batch_failed', 'load_more_failed', 'restart_failed'] as string[]).includes(event));
+// While it runs, Chakra hides the label behind the spinner, so find the button by its text.
+const retryButton = () => screen.getByText('Retry').closest('button')!;
 const loadMoreButton = () => screen.queryByRole('button', { name: 'Load more' });
 const status = () => screen.getByRole('status');
 
@@ -78,25 +85,36 @@ describe('Load more', () => {
     expect(api.instrumentsBatch.mock.calls[1][0].ids).toEqual(catalogues.a.slice(30, 45));
   });
 
-  it('keeps the rows on failure, shows an inline error with Retry, and recovers on Retry', async () => {
+  it('keeps the rows on failure, replaces the button with the major failure message, and recovers on Retry', async () => {
     const api = fakeApi();
     const { report } = renderApp(api);
     await search('a');
 
     api.instrumentsBatch.mockRejectedValueOnce(new ApiError(500, 'boom'));
     await clickLoadMore();
-    expect(report).toHaveBeenCalledWith('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] });
 
     expect(rows()).toHaveLength(15);
     expect(loadMoreButton()).toBeNull();
-    expect(screen.getByText(/could not load more/i)).toBeTruthy();
+    expect(screen.getByText(MESSAGE_TITLE)).toBeTruthy();
+    expect(screen.getByText(MESSAGE_BODY)).toBeTruthy();
+    expect(removedEvents(report)).toHaveLength(0);
 
+    const retry = deferred<Awaited<ReturnType<typeof api.instrumentsBatch>>>();
+    api.instrumentsBatch.mockReturnValueOnce(retry.promise);
+    const batchCalls = api.instrumentsBatch.mock.calls.length;
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     });
+    // Still mounted, disabled and not stacking a second request.
+    expect(screen.getByText(MESSAGE_TITLE)).toBeTruthy();
+    expect(retryButton().disabled).toBe(true);
+    expect(api.instrumentsBatch).toHaveBeenCalledTimes(batchCalls + 1);
+    await act(async () => {
+      retry.resolve({ documents: catalogues.a.slice(18, 33).map(doc), missing: [], indexed_at: 1 });
+    });
 
     expect(rows()).toHaveLength(30);
-    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
+    expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
     expect(loadMoreButton()).toBeTruthy();
   });
 
@@ -195,7 +213,7 @@ describe('Load more', () => {
     expect(report).toHaveBeenCalledWith('snapshot_stale', { level: 'warn', message: expect.stringContaining('restarting') });
   });
 
-  it('reports restart_failed when reloading after a stale snapshot fails', async () => {
+  it('shows the major failure message under the rows when reloading after a stale snapshot fails', async () => {
     const api = fakeApi();
     const { report } = renderApp(api);
     await search('a');
@@ -203,11 +221,13 @@ describe('Load more', () => {
     api.searchIndex.mockRejectedValueOnce(new ApiError(500, 'boom'));
     await clickLoadMore();
 
-    await waitFor(() => expect(report).toHaveBeenCalledWith('restart_failed', { level: 'error', message: expect.any(String), detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] }));
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+    await screen.findByText(MESSAGE_TITLE);
+    expect(rows()).toHaveLength(15);
+    expect(loadMoreButton()).toBeNull();
+    expect(removedEvents(report)).toHaveLength(0);
   });
 
-  it('logs and shows the retry state when the batch response leaves a requested ID unaccounted for', async () => {
+  it('logs the incomplete batch and shows the major failure message when a requested ID is unaccounted for', async () => {
     const api = fakeApi();
     const { report } = renderApp(api);
     await search('a');
@@ -216,29 +236,149 @@ describe('Load more', () => {
     await clickLoadMore();
 
     expect(rows()).toHaveLength(15);
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+    expect(screen.getByText(MESSAGE_TITLE)).toBeTruthy();
     expect(report).toHaveBeenCalledWith('batch_incomplete', { level: 'error', message: expect.any(String), detail: expect.arrayContaining([ids[0]]), entries: [ids[0]] });
-    expect(report).toHaveBeenCalledWith('load_more_failed', {
-      level: 'error',
-      message: 'Loading more results failed',
-      detail: expect.objectContaining({ message: expect.stringContaining(ids[0]) }),
-      entries: [expect.stringContaining(`a: Batch response omitted requested IDs: ${ids[0]}`)],
-    });
+    expect(removedEvents(report)).toHaveLength(0);
   });
 
-  it('logs when the first batch fails', async () => {
+  it('replaces the results area when the first batch fails, keeps the header and search, and Retry reruns it', async () => {
     const api = fakeApi();
     // Only the results request fails; the filter counts request runs alongside it.
     const base = api.searchIndex.getMockImplementation()!;
+    let failing = true;
+    const gate = deferred<void>();
     api.searchIndex.mockImplementation(async (body, signal) => {
-      if (body.include?.includes('documents')) throw new ApiError(500, 'boom');
+      if (failing && body.include?.includes('documents')) throw new ApiError(500, 'boom');
+      if (body.include?.includes('documents')) await gate.promise;
       return base(body, signal);
     });
     const { report } = renderApp(api);
     fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
-    await screen.findByText('Something went wrong');
-    expect(report).toHaveBeenCalledWith('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] });
+    await screen.findByText(MESSAGE_TITLE);
+    expect(screen.getByText(MESSAGE_BODY)).toBeTruthy();
+    expect(screen.queryByText('Something went wrong')).toBeNull();
+    expect(rows()).toHaveLength(0);
+    expect(screen.getByLabelText('Sort by')).toBeTruthy();
+    expect((screen.getByLabelText('Search shares and ETFs') as HTMLInputElement).value).toBe('a');
+    expect(removedEvents(report)).toHaveLength(0);
+
+    failing = false;
+    const calls = api.searchIndex.mock.calls.length;
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    });
+    // Message stays mounted, Retry disabled, no skeleton swap, until the retry settles.
+    expect(screen.getByText(MESSAGE_TITLE)).toBeTruthy();
+    expect(retryButton().disabled).toBe(true);
+    expect(skeletonRows()).toHaveLength(0);
+    await act(async () => gate.resolve());
+    await screen.findByRole('heading', { level: 2 });
+    expect(api.searchIndex.mock.calls.slice(calls).some(([b]) => b.include?.includes('documents') && b.search_text === 'a')).toBe(true);
+    expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+    expect(rows()).toHaveLength(15);
+  });
+
+  describe('an abandoned Retry that is still running', () => {
+    // Plain 'a' fails its first batch, and its Retry then hangs; any other request (new term, sort) succeeds.
+    async function stuckRetry() {
+      const api = fakeApi();
+      const base = api.searchIndex.getMockImplementation()!;
+      let attempt = 0;
+      api.searchIndex.mockImplementation(async (body, signal) => {
+        if (body.include?.includes('documents') && body.search_text === 'a' && !body.order_by) {
+          if (attempt++ === 0) throw new ApiError(500, 'boom');
+          return new Promise(() => undefined);
+        }
+        return base(body, signal);
+      });
+      renderApp(api);
+      fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+      await screen.findByText(MESSAGE_TITLE);
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      });
+      expect(retryButton().disabled).toBe(true);
+    }
+
+    it('does not keep the message over the results of a new search', async () => {
+      await stuckRetry();
+      fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'b' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+      await screen.findByRole('heading', { level: 2 });
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+      expect(rows()).toHaveLength(15);
+    });
+
+    it('does not revive the message when the sort goes back to the same request (A, B, A)', async () => {
+      await stuckRetry();
+      const sort = screen.getByLabelText('Sort by');
+      fireEvent.change(sort, { target: { value: 'symbol.desc' } });
+      await screen.findByRole('heading', { level: 2 });
+      fireEvent.change(sort, { target: { value: '' } });
+      await waitFor(() => expect(screen.queryByText(MESSAGE_TITLE)).toBeNull());
+      await waitFor(() => expect(skeletonRows().length + rows().length).toBeGreaterThan(0));
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+    });
+
+    it('does not keep the message over the results of a sort change', async () => {
+      await stuckRetry();
+      fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'symbol.desc' } });
+      await screen.findByRole('heading', { level: 2 });
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+      expect(rows()).toHaveLength(15);
+    });
+  });
+
+  it('shows the message in place of the results when a refinement fails', async () => {
+    const api = fakeApi();
+    renderApp(api);
+    await search('a');
+    const base = api.searchIndex.getMockImplementation()!;
+    api.searchIndex.mockImplementation(async (body, signal) => {
+      if (body.include?.includes('documents')) throw new ApiError(500, 'boom');
+      return base(body, signal);
+    });
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'symbol.desc' } });
+
+    await screen.findByText(MESSAGE_TITLE);
+    expect(rows()).toHaveLength(0);
+    expect(screen.getByLabelText('Sort by')).toBeTruthy();
+  });
+});
+
+describe('retry layers', () => {
+  it('one outage is retried only by the API client: apiRetries + 1 attempts and a single major_failure', async () => {
+    const api = fakeApi();
+    const base = api.searchIndex.getMockImplementation()!;
+    let attempts = 0;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const path = url.replace('http://x', '');
+      const body = init?.body ? JSON.parse(init.body as string) : {};
+      if (path === '/search/index') {
+        if (body.include?.includes('documents')) {
+          attempts++;
+          return new Response('{}', { status: 503 });
+        }
+        return Response.json(await base(body));
+      }
+      if (path === '/version') return Response.json({ indexed_at: fake.indexedAt });
+      if (path.startsWith('/popular')) return Response.json(await api.popular(1));
+      return Response.json([]);
+    });
+    const report = vi.fn();
+    const real = createApiClient('http://x', { report, retries: config.apiRetries, retryBaseMs: 1, timeoutMs: 1000 });
+    renderApp(real as unknown as FakeApi, { report });
+    fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await screen.findByText(MESSAGE_TITLE);
+    expect(attempts).toBe(config.apiRetries + 1);
+    expect(report.mock.calls.filter(([event]) => event === 'major_failure')).toHaveLength(1);
+    expect(report.mock.calls.filter(([event]) => event === 'api_call_failed')).toHaveLength(0);
+    expect(removedEvents(report)).toHaveLength(0);
+    vi.unstubAllGlobals();
   });
 });

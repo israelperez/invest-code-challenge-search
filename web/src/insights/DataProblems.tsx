@@ -1,17 +1,15 @@
 import { Alert, Box, Flex, Heading, Text } from '@chakra-ui/react';
 import { useId, useSyncExternalStore } from 'react';
-import { config } from '../config';
 import { DISTINCT_CAP } from './problem-counter';
 import type { ProblemEvent } from '../search/report';
 import { useSearchBackend } from '../search/search-source-context';
 
 // snapshot_stale (a normal reload) and late_response_discarded are counted but not shown.
 const ROWS: [ProblemEvent, string][] = [
+  ['major_failure', 'Major failures (issues message shown)'],
   ['batch_ids_missing', 'Batches that reported missing IDs'],
   ['batch_incomplete', 'Incomplete batch responses'],
-  ['first_batch_failed', 'First batch failed to load'],
-  ['load_more_failed', 'Load more failed'],
-  ['restart_failed', 'Restart after a stale snapshot failed'],
+  ['api_call_failed', 'API calls that failed'],
   ['logo_failed', 'Logos that failed to load'],
   ['no_display_name', 'Instruments with no display name'],
 ];
@@ -20,7 +18,6 @@ export function DataProblems() {
   const { problems } = useSearchBackend();
   const counts = useSyncExternalStore(problems.subscribe, problems.getSnapshot);
   const headingId = useId();
-  if (!config.dataProblemsEnabled) return null;
   return (
     <Box as="section" aria-labelledby={headingId}>
       <Heading as="h3" id={headingId} size="md" marginBottom="3">

@@ -1,11 +1,11 @@
 import { keepPreviousData, type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { SearchIndexRequest, SearchIndexResponse } from '../api/types';
 import { config } from '../config';
 import { buildSearchRequest, type Filters, type SearchState } from './build-search-request';
-import { failureEntry } from './report';
 import type { SearchSource } from './search-source';
 import { useSearchBackend } from './search-source-context';
+import { useRetry } from './use-retry';
 
 const VERSION_KEY = ['version'] as const;
 const SEARCH_KEY = 'search-index';
@@ -43,17 +43,13 @@ export function useVersion() {
 
 // `state` null = nothing submitted yet. Waits for the version so the key carries a settled indexed_at.
 export function useSearchIndex(state: SearchState | null) {
-  const { source, report } = useSearchBackend();
+  const { source } = useSearchBackend();
   const queryClient = useQueryClient();
   const version = useVersion();
   const request = state ? buildSearchRequest(state) : null;
   const query = useQuery({
     queryKey: searchKey(version.data?.indexed_at ?? null, request),
-    queryFn: ({ signal }) =>
-      source.loadFirst(state!, signal).catch((error: unknown) => {
-        if (!signal.aborted) report('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: error, entries: [failureEntry(state!.term, error)] });
-        throw error;
-      }),
+    queryFn: ({ signal }) => source.loadFirst(state!, signal),
     enabled: request !== null && !version.isPending,
     staleTime: config.searchStaleTimeMs,
     // Changing only the filters keeps the previous results on screen while they load; a new term or sort shows skeletons.
@@ -69,7 +65,7 @@ export function useSearchIndex(state: SearchState | null) {
 // After a 409: forget the session's fetches and reload the first batch without blanking the results.
 // The new first batch is cached under the current and the post-restart key, so neither shows a skeleton.
 export function useRestartSearch(state: SearchState) {
-  const { source, report } = useSearchBackend();
+  const { source } = useSearchBackend();
   const queryClient = useQueryClient();
   const version = useVersion();
   const request = buildSearchRequest(state);
@@ -85,23 +81,12 @@ export function useRestartSearch(state: SearchState) {
   };
 }
 
-// The first value is immediate; only changes wait.
-function useDebounced<T>(value: T, ms: number) {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), ms);
-    return () => clearTimeout(timer);
-  }, [value, ms]);
-  return debounced;
-}
-
 // Counts and facets for the pending filters. order_by is left out of the key, so a sort never refetches them.
 export function useFacetCounts(term: string, pending: Filters) {
   const { api } = useSearchBackend();
   const version = useVersion();
-  const current = JSON.stringify(buildSearchRequest({ term, filters: pending }));
-  const settled = useDebounced(current, config.countsDebounceMs);
-  const request = useMemo(() => JSON.parse(settled) as SearchIndexRequest, [settled]);
+  const key = JSON.stringify(buildSearchRequest({ term, filters: pending }));
+  const request = useMemo(() => JSON.parse(key) as SearchIndexRequest, [key]);
   const query = useQuery({
     queryKey: ['facet-counts', version.data?.indexed_at ?? null, request],
     queryFn: ({ signal }) => api.searchIndex({ ...request, include: ['count', 'facets'] }, signal),
@@ -110,16 +95,18 @@ export function useFacetCounts(term: string, pending: Filters) {
     // Kept for the rail's structure (bucket edges) only; its numbers are never shown.
     placeholderData: keepPreviousData,
   });
-  const loading = !query.isError && (settled !== current || query.isPending || query.isPlaceholderData);
+  const loading = !query.isError && (query.isPending || query.isPlaceholderData);
   // Only counts for the current state are shown or used to disable options.
   const ready = !loading && !query.isError;
+  const { retrying, retry } = useRetry(() => query.refetch(), key);
   return {
     facets: ready ? query.data?.facets : undefined,
     // Possibly from an earlier state: use for which rows exist, never for counts.
     known: query.data?.facets,
     count: ready ? query.data?.count : undefined,
     loading,
-    error: query.isError,
-    retry: () => void query.refetch(),
+    error: query.isError || retrying,
+    retrying,
+    retry: () => void retry(),
   };
 }

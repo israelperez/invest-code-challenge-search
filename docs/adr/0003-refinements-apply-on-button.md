@@ -6,7 +6,7 @@ Ticking filters doesn't update the results. A debounced counts-only request keep
 
 ## Why
 
-Live-applying every tick fetches results the user never looks at and makes the list churn while they're still deciding. Counts still need the server (AND combinations across facets can't be computed in the browser), so we request only counts while ticking: a small response, debounced so quick ticks collapse into one request. The live total on the button tells users what they'll get before committing and stops them applying into zero results.
+Live-applying every tick fetches results the user never looks at and makes the list churn while they're still deciding. Counts still need the server (AND combinations across facets can't be computed in the browser), so we request only counts while ticking: a small response, debounced so quick ticks collapse into one request. _Superseded 2026-10-30 (Israel): the filter debounce (150 ms, `countsDebounceMs`) was removed; filter ticks now take effect at once and the earlier request is cancelled, because the delay slowed every tick for almost no benefit._ The live total on the button tells users what they'll get before committing and stops them applying into zero results.
 
 ## Consequences
 

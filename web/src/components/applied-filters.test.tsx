@@ -10,7 +10,7 @@ const chipRow = () => screen.queryByRole('list', { name: 'Applied filters' });
 const remove = (label: string) => screen.getByRole('button', { name: `Remove ${label}` });
 const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
 
-// Ticks ETFs and Shares, then applies them the way the layout does: the drawer button, or the rail's debounce.
+// Ticks ETFs and Shares, then applies them the way the layout does: the drawer button, or the rail's live apply.
 async function setup(live: boolean) {
   const mobileMatchMedia = window.matchMedia;
   if (live) window.matchMedia = ((query: string) => ({ ...mobileMatchMedia(query), matches: true })) as typeof window.matchMedia;
@@ -54,7 +54,6 @@ describe.each([['beside the results', true]])('applied filter chips %s', (_name,
     expect(within(chipRow()!).getAllByRole('listitem')).toHaveLength(3);
 
     fireEvent.click(remove('ETFs'));
-    // Less than the rail's debounce, so only an immediate apply can have sent it.
     await tick(10);
 
     expect(lastResults(api)).toMatchObject({ kind: ['equity'], search_text: 'a' });

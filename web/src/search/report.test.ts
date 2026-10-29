@@ -12,8 +12,8 @@ describe('consoleReport', () => {
 
   it('prints exactly as before without entries', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    consoleReport('load_more_failed', { level: 'error', message: 'failed', detail: 'boom' });
-    consoleReport('restart_failed', { level: 'error', message: 'failed too', entries: [] });
+    consoleReport('api_call_failed', { level: 'error', message: 'failed', detail: 'boom' });
+    consoleReport('logo_failed', { level: 'error', message: 'failed too', entries: [] });
     expect(error).toHaveBeenNthCalledWith(1, 'failed', 'boom');
     expect(error).toHaveBeenNthCalledWith(2, 'failed too');
   });

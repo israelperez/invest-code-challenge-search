@@ -7,7 +7,7 @@ const api = createApiClient(inject('apiBaseUrl'));
 
 describe('real API contract', () => {
   it('answers the empty search with the full count and the first batch of documents', async () => {
-    const request = { ...buildSearchRequest({ term: '', filters: {} }), document_limit: config.documentLimit };
+    const request = { ...buildSearchRequest({ term: '', filters: {} }), document_limit: config.documentLimit, id_limit: config.idLimit };
     const response = await api.searchIndex(request);
 
     expect(response.count).toBe(834);
