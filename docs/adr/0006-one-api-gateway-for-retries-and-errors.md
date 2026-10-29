@@ -1,6 +1,6 @@
 # One API gateway owns retries, timeouts and error reporting
 
-Every API call goes through `request(caller, path, init)` in `web/src/api/client.ts`. It gives each attempt its own timeout, retries failures with doubling backoff, and reports a call that finally fails once, to the console and to the Data problems panel, as `api_call_failed` with an entry `<caller>: <message>` (`search-index`, `popular`, `log-search` and so on). The settings are `apiRetries`, `apiRetryBaseMs` and `apiTimeoutMs` in `web/src/config.ts`. Every other retry layer is off, so one outage is one sequence of attempts and one report.
+Every API call goes through `request(caller, path, init)` in `web/src/api/client.ts`. It gives each attempt its own timeout, retries failures with doubling backoff, and reports a call that finally fails once, to the console and to the Data problems panel, as `api_call_failed` with an entry `<caller>: <message>` (`search-index`, `popular`, `log-search` and so on). The settings are `apiRetries`, `apiRetryBaseMs` and `apiTimeoutMs` in `web/src/config.ts`. Every other retry layer is off, so one outage is one sequence of attempts and one report. _Superseded 2026-10-30 (Israel): a call from a major caller (`search-index`, `instruments-batch`) that finally fails is reported as `major_failure`, not `api_call_failed`, and the page shows one message with Retry ([ADR 0007](./0007-one-message-for-major-api-failures.md)). Minor callers keep `api_call_failed`._
 
 ## Why
 
