@@ -37,7 +37,7 @@ async function openSettings(api = fakeApi()) {
 const confirmDialog = async (title: RegExp) => within(await screen.findByRole('alertdialog', { name: title }));
 
 describe('Settings tab', () => {
-  it('shows the seven fields with the config descriptions as help text', async () => {
+  it('shows the original fields with the config descriptions as help text', async () => {
     await openSettings();
 
     for (const label of [...LABELS, 'Show raw data']) expect(screen.getByLabelText(label)).toBeTruthy();
@@ -61,9 +61,57 @@ describe('Settings tab', () => {
     expect(await screen.findByLabelText('Results per load')).toBeTruthy();
   });
 
-  it('has no suggestion delay field', async () => {
+  it('shows every editable setting, grouped under headings, and not settingsEnabled or searchStaleTimeMs', async () => {
     await openSettings();
-    expect(screen.queryByLabelText(/suggestion delay/i)).toBeNull();
+    for (const label of ['Suggestion delay (ms)', 'API address', 'Featured searches', 'Most popular pills', 'Smallest last page', 'IDs per search request', 'Remember recent searches', 'Show the Insights tab', 'Send analytics events']) expect(screen.getByLabelText(label)).toBeTruthy();
+    for (const name of ['Results', 'Suggestions', 'Popular and recent searches', 'API', 'Development features']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    expect(screen.queryByLabelText(/settings tab|settingsEnabled/i)).toBeNull();
+    expect(screen.queryByLabelText(/stale/i)).toBeNull();
+  });
+
+  it('saves a URL, a list, a toggle and a number from the footer button, outside the form', async () => {
+    await openSettings();
+    const save = screen.getByRole('button', { name: 'Save and reload' });
+    expect(save.closest('form')).toBeNull();
+    fireEvent.change(screen.getByLabelText('API address'), { target: { value: ' https://api.example.com ' } });
+    fireEvent.change(screen.getByLabelText('Featured searches'), { target: { value: 'vas, ioz' } });
+    fireEvent.change(screen.getByLabelText('IDs per search request'), { target: { value: '200' } });
+    fireEvent.click(screen.getByLabelText('Send analytics events'));
+    await waitFor(() => expect((screen.getByLabelText('Send analytics events') as HTMLInputElement).checked).toBe(false));
+    fireEvent.click(save);
+
+    expect(stored()).toEqual({ apiBaseUrl: 'https://api.example.com', featuredSearches: ['VAS', 'IOZ'], idLimit: 200, analytics: false });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps the pills to the typed Most popular pills, and orphanSize below Results per load', async () => {
+    await openSettings();
+    fireEvent.change(screen.getByLabelText('Most popular pills'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Results per load'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Smallest last page'), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and reload' }));
+
+    expect(stored()).toEqual({ popularMax: 5, popularMobile: 5, popularTablet: 5, popularDesktop: 5, documentLimit: 2, orphanSize: 1 });
+  });
+
+  it('shows saved strings, and falls back to the defaults when the stored ones are invalid', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ apiBaseUrl: 'ftp://nope', featuredSearches: ['vas'] }));
+    await openSettings();
+    expect((screen.getByLabelText('API address') as HTMLInputElement).value).toBe(original.apiBaseUrl);
+    expect((screen.getByLabelText('Featured searches') as HTMLInputElement).value).toBe('vas');
+  });
+
+  it('puts the Save button in the drawer footer only on the Settings tab', async () => {
+    renderApp(fakeApi());
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+    expect(await screen.findByRole('tab', { name: 'Insights' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Save and reload' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Settings' }));
+    expect(await screen.findByRole('button', { name: 'Save and reload' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Insights' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Save and reload' })).toBeNull());
   });
 
   it('shows the one-line toggle after the popular sizes, on by default, and stores it only when turned off', async () => {

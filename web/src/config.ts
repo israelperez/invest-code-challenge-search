@@ -11,58 +11,83 @@ export const settingDescriptions = {
   popularSearchOneLine: 'When on, popular pills that do not fit on one line stay hidden, so the pills never wrap. When off, they wrap onto more lines and all the chosen pills show.',
   recentSearchLimit: 'How many of your latest searches are remembered and offered when you click the search box, newest first. When full, the oldest drops off.',
   showRawData: 'Shows the values exactly as the API sends them (issuer, type, units on issue and instrument ID) in small text beside each label. Use it to tell apart issuers that share a label, such as "investors mutual" and "investors_mutual".',
+  apiBaseUrl: 'The address of the Search API the app talks to. It must start with http:// or https://. A wrong address leaves the app with no results.',
+  apiRetries: 'How many times a failed request is tried again before the app gives up. Only network errors, timeouts and server errors are retried. At 0, nothing is retried.',
+  apiRetryBaseMs: 'How long to wait before the first retry, in milliseconds. The wait doubles after each retry, so 250 means 250, 500, then 1000.',
+  apiTimeoutMs: 'The longest one request may take, in milliseconds. A request that takes longer counts as failed and is retried.',
+  orphanSize: 'A last page this small is joined to the page before it, so results never end on a tiny page. At 0, pages are never joined. It must be lower than Results per load.',
+  idLimit: 'How many matching instrument IDs each search request asks for ahead of the results (the API allows up to 1000). Lower means more, smaller requests as you keep clicking "Load more".',
+  versionStaleTimeMs: 'How long the app trusts its last check of the API data version, in milliseconds, before it checks again when you return to the page. A newer version reloads the results.',
+  countsDebounceMs: 'How long the filter counts wait after your last tick, in milliseconds, before they update. Higher means fewer requests while you tick several filters.',
+  skeletonRows: 'How many grey placeholder rows show in the results while a new search loads.',
+  featuredIssuers: 'How many issuers the issuer filter lists before "Show all".',
+  suggestionDebounceMs: 'How long typing must pause, in milliseconds, before suggestions are requested. Lower feels faster but sends more requests.',
+  suggestionSkeletonRows: 'How many grey placeholder rows show in the suggestion list while the first lookup loads.',
+  popularMax: 'The most popular search pills any screen size can show. The three pill counts cannot go higher than this.',
+  popularInPopup: 'How many popular searches are listed under your recent ones when you click the empty search box.',
+  recentSearches: 'When on, the app remembers your searches and offers them when you click the search box. When off, none are offered.',
+  insightsEnabled: 'Shows the Insights tab in this panel. It also needs the API started with ENABLE_INSIGHTS=true.',
+  dataProblemsEnabled: 'Shows the Data problems section in the Insights tab.',
+  analytics: 'When on, product events and problem reports go to analytics (the console, for now). When off, problems print as plain console output.',
+  featuredSearches: 'The Betashares ETFs shown as pills when there are no popular searches yet. Separate the symbols with commas.',
 } as const;
 
 export const config = {
-  // Base URL of the Search API.
+  // settingDescriptions.apiBaseUrl
   apiBaseUrl: 'http://localhost:8787',
+  // settingDescriptions.apiRetries; only network errors, timeouts and 5xx are retried; total attempts are this plus one.
+  apiRetries: 3,
+  // settingDescriptions.apiRetryBaseMs
+  apiRetryBaseMs: 250,
+  // settingDescriptions.apiTimeoutMs
+  apiTimeoutMs: 5000,
   // settingDescriptions.documentLimit
   documentLimit: 15,
-  // A last page this small is merged into the page before it, so results never end on a tiny page.
+  // settingDescriptions.orphanSize; merged into the page before it; the first request asks for documentLimit + orphanSize.
   orphanSize: 3,
-  // Size of the ordered id window requested with each search; sent as id_limit.
+  // settingDescriptions.idLimit; sent as id_limit.
   idLimit: 1000,
   // How long a search result stays fresh; Infinity because indexed_at invalidates it instead.
   searchStaleTimeMs: Infinity,
-  // How long GET /version stays fresh before a mount, focus or reconnect refetches it.
+  // settingDescriptions.versionStaleTimeMs
   versionStaleTimeMs: 60_000,
-  // How long filter ticks settle before the counts-only request goes out.
+  // settingDescriptions.countsDebounceMs
   countsDebounceMs: 150,
-  // Placeholder rows shown while a new search loads.
+  // settingDescriptions.skeletonRows
   skeletonRows: 5,
-  // Issuers shown before "Show all"; the rest are one click away.
+  // settingDescriptions.featuredIssuers
   featuredIssuers: 8,
   // settingDescriptions.suggestionMinChars
   suggestionMinChars: 3,
-  // How long typing settles before the suggestion request goes out.
+  // settingDescriptions.suggestionDebounceMs
   suggestionDebounceMs: 200,
   // settingDescriptions.suggestionTermLimit
   suggestionTermLimit: 5,
-  // Placeholder rows shown in the suggestion list while the first lookup loads.
+  // settingDescriptions.suggestionSkeletonRows
   suggestionSkeletonRows: 1,
   // settingDescriptions.popularMobile, popularTablet and popularDesktop (the theme's tablet and desktop breakpoints); the request asks for the largest.
   popularShown: { mobile: 6, tablet: 8, desktop: 13 },
-  // The most popular pills any size may show. This is a display cap; the API seed holds 43 popular searches.
+  // settingDescriptions.popularMax; a display cap; the API seed holds 43 popular searches.
   popularMax: 15,
   // settingDescriptions.popularSearchOneLine
   popularSearchOneLine: true,
-  // The popular searches listed under the recent ones when the empty search box is focused.
+  // settingDescriptions.popularInPopup
   popularInPopup: 5,
-  // Feature flag: remember this user's searches and offer them when the input is focused.
+  // settingDescriptions.recentSearches; a feature flag.
   recentSearches: true,
   // settingDescriptions.recentSearchLimit
   recentSearchLimit: 4,
-  // Feature flag: the Insights tab in the gear panel (development only: on under `vite` and Vitest, off in a production build; also needs the API's ENABLE_INSIGHTS).
+  // settingDescriptions.insightsEnabled; a development-only feature flag: on under `vite` and Vitest, off in a production build.
   insightsEnabled: import.meta.env.DEV,
   // Feature flag: the Settings tab in the gear panel (development only, like insightsEnabled).
   settingsEnabled: import.meta.env.DEV,
-  // Feature flag: the Data problems section in the Insights tab (development only, like insightsEnabled).
+  // settingDescriptions.dataProblemsEnabled; a development-only feature flag, like insightsEnabled.
   dataProblemsEnabled: import.meta.env.DEV,
   // settingDescriptions.showRawData; off by default.
   showRawData: false,
-  // Feature flag: send product events and problem reports to analytics (the console, for now); off prints problems as plain console output.
+  // settingDescriptions.analytics; a feature flag.
   analytics: true,
-  // Betashares ETFs offered as pills when there are no popular searches to show.
+  // settingDescriptions.featuredSearches
   featuredSearches: ['A200', 'NDQ', 'QAU', 'DHHF', 'HQLT', 'BGBL'],
 } as const;
 
