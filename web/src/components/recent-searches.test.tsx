@@ -230,7 +230,7 @@ describe('Saving a recent search', () => {
   });
 
   it('saves a popular pill click', async () => {
-    setup();
+    setup([], { popular: ['A200'] });
     vi.useRealTimers();
 
     fireEvent.click(await screen.findByRole('button', { name: 'A200' }));

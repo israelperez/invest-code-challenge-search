@@ -123,8 +123,7 @@ export function createApiClient(
     popular: (limit: number, signal?: AbortSignal) => request<PopularResponse>('popular', `/popular?limit=${limit}`, { signal }),
     // Dev only: 404 when the API runs without ENABLE_INSIGHTS.
     zeroResults: (signal?: AbortSignal) => request<ZeroResultsResponse>('zero-results', '/insights/zero-results', { signal }),
-    // Dev only (404 without ENABLE_INSIGHTS): empty the search log, or replace it with the demo seed.
-    clearSearchLog: () => request<void>('clear-search-log', '/search-log', { method: 'DELETE' }),
+    // Dev only (404 without ENABLE_INSIGHTS): replace the search log with the demo seed.
     restoreSeed: () => request<void>('restore-seed', '/search-log/restore-seed', { method: 'POST' }),
     // Fire-and-forget log of an explicit search; the server answers 202 with no body.
     logSearch: (term: string, submissionId: string, clientId: string) =>

@@ -94,7 +94,6 @@ export function fakeApi() {
       ],
       includes_seed_data: true as const,
     })),
-    clearSearchLog: vi.fn(async () => undefined),
     restoreSeed: vi.fn(async () => undefined),
     logSearch: vi.fn(async (_term: string, _submissionId: string, _clientId: string) => undefined),
     version: vi.fn(async () => ({ indexed_at: fake.indexedAt })),

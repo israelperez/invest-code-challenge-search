@@ -22,9 +22,9 @@ const TOGGLE_LABELS: Record<BooleanKey, string> = {
 
 // What the demo presenter can change, by area. Every editable key appears once.
 const GROUPS: { title: string; keys: (NumberKey | BooleanKey | StringKey)[] }[] = [
-  { title: 'Results', keys: ['documentLimit', 'orphanSize', 'idLimit', 'skeletonRows', 'featuredIssuers', 'countsDebounceMs', 'versionStaleTimeMs', 'showRawData'] },
+  { title: 'Results', keys: ['documentLimit', 'orphanSize', 'idLimit', 'skeletonRows', 'featuredIssuers', 'versionStaleTimeMs', 'showRawData'] },
   { title: 'Suggestions', keys: ['suggestionMinChars', 'suggestionTermLimit', 'suggestionDebounceMs', 'suggestionSkeletonRows'] },
-  { title: 'Popular and recent searches', keys: ['popularMax', 'popularMobile', 'popularTablet', 'popularDesktop', 'popularSearchOneLine', 'popularInPopup', 'featuredSearches', 'recentSearches', 'recentSearchLimit'] },
+  { title: 'Popular and recent searches', keys: ['popularMax', 'popularMobile', 'popularTablet', 'popularDesktop', 'popularSearchOneLine', 'popularInPopup', 'recentSearches', 'recentSearchLimit'] },
   { title: 'API', keys: ['apiBaseUrl', 'apiRetries', 'apiRetryBaseMs', 'apiTimeoutMs'] },
   { title: 'Development features', keys: ['insightsEnabled', 'dataProblemsEnabled', 'analytics'] },
 ];
@@ -38,7 +38,7 @@ export function SettingsTab() {
   const active = Object.keys(initial).length;
   const [values, setValues] = useState(() => Object.fromEntries((Object.keys(NUMBER_FIELDS) as NumberKey[]).map((key) => [key, String(initial[key] ?? effective(key))])) as Record<NumberKey, string>);
   const [flags, setFlags] = useState(() => Object.fromEntries(BOOLEAN_KEYS.map((key) => [key, initial[key] ?? config[key]])) as Record<BooleanKey, boolean>);
-  const [texts, setTexts] = useState<Record<StringKey, string>>({ apiBaseUrl: initial.apiBaseUrl ?? config.apiBaseUrl, featuredSearches: (initial.featuredSearches ?? config.featuredSearches).join(', ') });
+  const [texts, setTexts] = useState<Record<StringKey, string>>({ apiBaseUrl: initial.apiBaseUrl ?? config.apiBaseUrl });
   const [message, setMessage] = useState<Message | null>(null);
 
   const toggle = (key: BooleanKey, label: string) => (
@@ -145,14 +145,7 @@ function ResetPopularSearches({ onDone }: { onDone: (message: Message) => void }
       <Heading as="h3" size="sm">
         Reset popular searches
       </Heading>
-      <Text color="fg.muted">These buttons change the shared search log that feeds the popular pills and the Insights tab. Clearing it makes the pills fall back to the featured Betashares ETFs and empties Insights.</Text>
-      <Confirm
-        trigger="Clear popular searches"
-        help="Empties the search log. The popular pills fall back to the featured Betashares ETFs."
-        title="Clear popular searches?"
-        body="Every recorded search is deleted for everyone using this API."
-        onConfirm={run(api.clearSearchLog, 'Popular searches cleared.')}
-      />
+      <Text color="fg.muted">This button changes the shared search log that feeds the popular pills and the Insights tab.</Text>
       <Confirm
         trigger="Restore demo popular searches"
         help="Replaces the search log with the demo history, including the zero-result terms in Insights. Anything searched since is lost."

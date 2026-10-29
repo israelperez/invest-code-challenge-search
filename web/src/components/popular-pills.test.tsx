@@ -217,36 +217,19 @@ describe('Popular search pills', () => {
     expect(within(section).getByRole('button', { name: 'A200' })).toBeTruthy();
   });
 
-  it('fall back to featured Betashares ETFs when there are no popular searches', async () => {
+  it.each([
+    ['returns no popular searches', (api: ReturnType<typeof fakeApi>) => api.popular.mockResolvedValue({ terms: [], includes_seed_data: true })],
+    ['fails', (api: ReturnType<typeof fakeApi>) => api.popular.mockRejectedValue(new Error('down'))],
+  ])('stay as skeletons, with no pills or error text, when the fetch %s', async (_name, setup) => {
     const api = fakeApi();
-    api.popular.mockResolvedValue({ terms: [], includes_seed_data: true });
+    setup(api);
     renderApp(api);
-    const section = await screen.findByRole('region', { name: 'Featured Betashares ETFs' });
+    await waitFor(() => expect(api.popular).toHaveBeenCalled());
 
-    for (const term of config.featuredSearches) expect(within(section).getByRole('button', { name: term })).toBeTruthy();
-    expect(screen.queryByRole('region', { name: 'Popular searches' })).toBeNull();
-  });
-
-  it('fall back to the featured list, with no error text, when the fetch fails', async () => {
-    const api = fakeApi();
-    api.popular.mockRejectedValue(new Error('down'));
-    renderApp(api);
-
-    await screen.findByRole('region', { name: 'Featured Betashares ETFs' });
+    expect((await screen.findAllByTestId('popular-skeleton-pill')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('region', { name: 'Popular searches' }).getAttribute('aria-busy')).toBe('true');
+    expect(within(screen.getByRole('region', { name: 'Popular searches' })).queryAllByRole('button')).toEqual([]);
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.queryByText(/fail|error|unavailable/i)).toBeNull();
-  });
-
-  it('run a logged search when a featured pill is clicked', async () => {
-    const api = fakeApi();
-    api.popular.mockResolvedValue({ terms: [], includes_seed_data: true });
-    renderApp(api);
-
-    fireEvent.click(await screen.findByRole('button', { name: config.featuredSearches[0] }));
-
-    expect(input().value).toBe(config.featuredSearches[0]);
-    expect(api.logSearch.mock.calls.map(([term]) => term)).toEqual([config.featuredSearches[0]]);
-    await waitFor(() => expect(resultRequests(api).at(-1)![0]).toMatchObject({ search_text: config.featuredSearches[0] }));
   });
 
   it('pass axe', async () => {

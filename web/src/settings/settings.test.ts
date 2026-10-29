@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { config, popularRequestLimit } from '../config';
-import { applyOverrides, BOOLEAN_KEYS, loadOverrides, NUMBER_FIELDS, parseList, type BooleanKey, type NumberKey, overridesFromForm, resetOverrides, saveOverrides, STORAGE_KEY } from './settings';
+import { applyOverrides, BOOLEAN_KEYS, loadOverrides, NUMBER_FIELDS, type BooleanKey, type NumberKey, overridesFromForm, resetOverrides, saveOverrides, STORAGE_KEY } from './settings';
 
 const memory = (initial?: string) => {
   const data = new Map<string, string>(initial === undefined ? [] : [[STORAGE_KEY, initial]]);
@@ -88,7 +88,7 @@ describe('applying overrides', () => {
 
 const blank = Object.fromEntries(Object.keys(NUMBER_FIELDS).map((key) => [key, ''])) as Record<NumberKey, string>;
 const off = Object.fromEntries(BOOLEAN_KEYS.map((key) => [key, config[key]])) as Record<BooleanKey, boolean>;
-const noText = { apiBaseUrl: config.apiBaseUrl, featuredSearches: config.featuredSearches.join(',') };
+const noText = { apiBaseUrl: config.apiBaseUrl };
 
 describe('storing only what differs from the defaults', () => {
 
@@ -122,7 +122,7 @@ describe('storing only what differs from the defaults', () => {
   });
 });
 
-describe('the debounce and the one-line toggle', () => {
+describe('the suggestion delay and the one-line toggle', () => {
   it('keeps a stored suggestionDebounceMs now that it is a setting', () => {
     expect(loadOverrides(() => memory(JSON.stringify({ suggestionDebounceMs: 0 })).storage)).toEqual({ suggestionDebounceMs: 0 });
   });
@@ -147,19 +147,15 @@ describe('the debounce and the one-line toggle', () => {
 describe('the strings and the new numbers and toggles', () => {
   const stored = (value: object) => loadOverrides(() => memory(JSON.stringify(value)).storage);
 
-  it('round-trips a number, a toggle, a URL and a list through storage', () => {
+  it('round-trips a number, a toggle, a URL through storage', () => {
     const { storage } = memory();
-    const overrides = { idLimit: 200, analytics: false, apiBaseUrl: 'https://api.example.com', featuredSearches: ['VAS', 'IOZ'] };
+    const overrides = { idLimit: 200, analytics: false, apiBaseUrl: 'https://api.example.com' };
     saveOverrides(overrides, () => storage);
     expect(loadOverrides(() => storage)).toEqual(overrides);
   });
 
   it.each(['', '   ', 'localhost:8787', 'ftp://example.com', 'http://', 'http://a b', 42])('drops a stored apiBaseUrl of %j', (value) => {
     expect(stored({ apiBaseUrl: value })).toEqual({});
-  });
-
-  it.each([[[]], [['A200', '']], [['  ']], ['A200,NDQ'], [[1]]])('drops a stored featuredSearches of %j', (value) => {
-    expect(stored({ featuredSearches: value })).toEqual({});
   });
 
   it('bounds idLimit by what the API accepts', () => {
@@ -174,14 +170,10 @@ describe('the strings and the new numbers and toggles', () => {
     expect(stored({ documentLimit: 4, orphanSize: 3 })).toEqual({ documentLimit: 4, orphanSize: 3 });
   });
 
-  it('parses the list: trimmed, non-empty, upper-cased', () => {
-    expect(parseList(' vas, ioz ,, ndq ')).toEqual(['VAS', 'IOZ', 'NDQ']);
-  });
-
-  it('stores a URL and a list only when they differ from the default, and ignores an invalid URL or empty list', () => {
+  it('stores a URL only when it differs from the default, and ignores an invalid one', () => {
     expect(overridesFromForm(blank, off, noText)).toEqual({});
-    expect(overridesFromForm(blank, off, { apiBaseUrl: ' https://x.test ', featuredSearches: 'vas, ioz' })).toEqual({ apiBaseUrl: 'https://x.test', featuredSearches: ['VAS', 'IOZ'] });
-    expect(overridesFromForm(blank, off, { apiBaseUrl: 'nope', featuredSearches: ' , ' })).toEqual({});
+    expect(overridesFromForm(blank, off, { apiBaseUrl: ' https://x.test ' })).toEqual({ apiBaseUrl: 'https://x.test' });
+    expect(overridesFromForm(blank, off, { apiBaseUrl: 'nope' })).toEqual({});
   });
 
   it('clamps the pills to the chosen popularMax, including a default that no longer fits', () => {
@@ -194,9 +186,8 @@ describe('the strings and the new numbers and toggles', () => {
     expect(overridesFromForm({ ...blank, documentLimit: '1' }, off, noText)).toEqual({ documentLimit: 1, orphanSize: 0 });
   });
 
-  it('applies a URL and a list onto config', () => {
-    applyOverrides({ apiBaseUrl: 'https://x.test', featuredSearches: ['VAS'] });
+  it('applies a URL onto config', () => {
+    applyOverrides({ apiBaseUrl: 'https://x.test' });
     expect(config.apiBaseUrl).toBe('https://x.test');
-    expect(config.featuredSearches).toEqual(['VAS']);
   });
 });

@@ -16,20 +16,18 @@ export const settingDescriptions = {
   apiRetryBaseMs: 'How long to wait before the first retry, in milliseconds. The wait doubles after each retry, so 250 means 250, 500, then 1000.',
   apiTimeoutMs: 'The longest one request may take, in milliseconds. A request that takes longer counts as failed and is retried.',
   orphanSize: 'A last page this small is joined to the page before it, so results never end on a tiny page. At 0, pages are never joined. It must be lower than Results per load.',
-  idLimit: 'How many matching instrument IDs each search request asks for ahead of the results (the API allows up to 1000). Lower means more, smaller requests as you keep clicking "Load more".',
-  versionStaleTimeMs: 'How long the app trusts its last check of the API data version, in milliseconds, before it checks again when you return to the page. A newer version reloads the results.',
-  countsDebounceMs: 'How long the filter counts wait after your last tick, in milliseconds, before they update. Higher means fewer requests while you tick several filters.',
-  skeletonRows: 'How many grey placeholder rows show in the results while a new search loads.',
+  idLimit: 'The most matching instruments, in sort order, that one search request will list. At 15 results per load, 500 is about 33 loads. It cannot go above 1000, the most the API returns in one request. With more matches than this, the next set is fetched as you keep clicking "Load more".',
+  versionStaleTimeMs: 'How long the app trusts its last check of the data timestamp from the API, in milliseconds. It never checks on a timer, only when you return to the page (or the network reconnects), and only if the last check is older than this. Stay on the page and it never asks. Come back after this long and it asks straight away: if the timestamp changed it clears what it kept and loads fresh results, otherwise it keeps what it has.',
+  skeletonRows: 'How many grey skeleton rows (placeholders) show in the results while a new search loads.',
   featuredIssuers: 'How many issuers the issuer filter lists before "Show all".',
   suggestionDebounceMs: 'How long typing must pause, in milliseconds, before suggestions are requested. Lower feels faster but sends more requests.',
-  suggestionSkeletonRows: 'How many grey placeholder rows show in the suggestion list while the first lookup loads.',
+  suggestionSkeletonRows: 'How many grey skeleton rows (placeholders) show in the suggestion list while the first lookup loads.',
   popularMax: 'The most popular search pills any screen size can show. The three pill counts cannot go higher than this.',
   popularInPopup: 'How many popular searches are listed under your recent ones when you click the empty search box.',
   recentSearches: 'When on, the app remembers your searches and offers them when you click the search box. When off, none are offered.',
   insightsEnabled: 'Shows the Insights tab in this panel. It also needs the API started with ENABLE_INSIGHTS=true.',
   dataProblemsEnabled: 'Shows the Data problems section in the Insights tab.',
   analytics: 'When on, product events and problem reports go to analytics (the console, for now). When off, problems print as plain console output.',
-  featuredSearches: 'The Betashares ETFs shown as pills when there are no popular searches yet. Separate the symbols with commas.',
 } as const;
 
 export const config = {
@@ -45,14 +43,12 @@ export const config = {
   documentLimit: 15,
   // settingDescriptions.orphanSize; merged into the page before it; the first request asks for documentLimit + orphanSize.
   orphanSize: 3,
-  // settingDescriptions.idLimit; sent as id_limit.
-  idLimit: 1000,
+  // settingDescriptions.idLimit; sent as id_limit. The API's maximum is 1000.
+  idLimit: 500,
   // How long a search result stays fresh; Infinity because indexed_at invalidates it instead.
   searchStaleTimeMs: Infinity,
   // settingDescriptions.versionStaleTimeMs
-  versionStaleTimeMs: 60_000,
-  // settingDescriptions.countsDebounceMs
-  countsDebounceMs: 150,
+  versionStaleTimeMs: 600_000,
   // settingDescriptions.skeletonRows
   skeletonRows: 5,
   // settingDescriptions.featuredIssuers
@@ -87,8 +83,6 @@ export const config = {
   showRawData: false,
   // settingDescriptions.analytics; a feature flag.
   analytics: true,
-  // settingDescriptions.featuredSearches
-  featuredSearches: ['A200', 'NDQ', 'QAU', 'DHHF', 'HQLT', 'BGBL'],
 } as const;
 
 // One request serves every size, so resizing never refetches. A function because demo settings change popularShown at startup; at least 1, which the API requires.

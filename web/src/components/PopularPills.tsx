@@ -8,13 +8,12 @@ import { useSearchBackend } from '../search/search-source-context';
 // Spacing tokens only: a width that isn't one (e.g. '18') is dropped and the skeleton collapses to nothing.
 const SKELETON_WIDTHS = ['16', '20', '14', '24', '20', '16'];
 
-// An empty or failed fetch (no message; the API client reports the failure) falls back to the featured Betashares ETFs under their own
-// heading, since nobody searched those.
+// Shows only what the API returns. An empty or failed fetch (no message; the API client reports the failure) leaves the skeleton pills.
 export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
   const { popular } = useSearchBackend();
   // Changes when the search log is reset, which refetches the terms.
   const version = useSyncExternalStore(popular.subscribe, popular.version);
-  const [labels, setLabels] = useState<{ heading: string; terms: readonly string[] } | null>(null);
+  const [labels, setLabels] = useState<readonly string[] | null>(null);
   const headingId = useId();
   const rowRef = useRef<HTMLDivElement>(null);
   const [hidden, setHidden] = useState<boolean[]>([]);
@@ -28,13 +27,11 @@ export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
 
   useEffect(() => {
     let current = true;
-    const featured = { heading: 'Featured Betashares ETFs', terms: config.featuredSearches };
     popular
       .terms()
       .then((found) => found.map((term) => term.label))
-      .then((terms) => (terms.length ? { heading: 'Popular searches', terms } : featured))
-      .catch(() => featured)
-      .then((next) => current && setLabels(next));
+      .then((terms) => current && terms.length > 0 && setLabels(terms))
+      .catch(() => undefined);
     return () => {
       current = false;
     };
@@ -64,13 +61,13 @@ export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
   return (
     <Box as="section" aria-labelledby={headingId} aria-busy={!labels} marginTop="3">
       <Heading as="h2" id={headingId} size="sm" marginBottom="2">
-        {labels?.heading ?? 'Popular searches'}
+        Popular searches
       </Heading>
       {/* One-line mode clips the row to one pill. The 4px padding (cancelled by the negative margin) keeps focus rings from
           being cut, in every browser; the clip ends at 44px and the second row starts at 48px, so it never shows. */}
       <Flex ref={rowRef} gap="2" flexWrap="wrap" {...(oneLine && { padding: '1', margin: '-1', height: '11', overflow: 'hidden' })}>
         {labels ? (
-          labels.terms.slice(0, shown).map((term, i) => (
+          labels.slice(0, shown).map((term, i) => (
             <Button key={term} type="button" variant="outline" size="sm" inert={hidden[i]} aria-hidden={hidden[i] || undefined} onClick={() => onPick(term)}>
               {term}
             </Button>

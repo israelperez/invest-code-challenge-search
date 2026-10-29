@@ -63,42 +63,40 @@ describe('Settings tab', () => {
 
   it('shows every editable setting, grouped under headings, and not settingsEnabled or searchStaleTimeMs', async () => {
     await openSettings();
-    for (const label of ['Suggestion delay (ms)', 'API address', 'Featured searches', 'Most popular pills', 'Smallest last page', 'IDs per search request', 'Remember recent searches', 'Show the Insights tab', 'Send analytics events']) expect(screen.getByLabelText(label)).toBeTruthy();
+    for (const label of ['Suggestion delay (ms)', 'API address', 'Maximum popular pills on any screen', 'Orphan size', 'Maximum IDs per search', 'Remember recent searches', 'Show the Insights tab', 'Send analytics events']) expect(screen.getByLabelText(label)).toBeTruthy();
     for (const name of ['Results', 'Suggestions', 'Popular and recent searches', 'API', 'Development features']) expect(screen.getByRole('heading', { name })).toBeTruthy();
     expect(screen.queryByLabelText(/settings tab|settingsEnabled/i)).toBeNull();
     expect(screen.queryByLabelText(/stale/i)).toBeNull();
   });
 
-  it('saves a URL, a list, a toggle and a number from the footer button, outside the form', async () => {
+  it('saves a URL, a toggle and a number from the footer button, outside the form', async () => {
     await openSettings();
     const save = screen.getByRole('button', { name: 'Save and reload' });
     expect(save.closest('form')).toBeNull();
     fireEvent.change(screen.getByLabelText('API address'), { target: { value: ' https://api.example.com ' } });
-    fireEvent.change(screen.getByLabelText('Featured searches'), { target: { value: 'vas, ioz' } });
-    fireEvent.change(screen.getByLabelText('IDs per search request'), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText('Maximum IDs per search'), { target: { value: '200' } });
     fireEvent.click(screen.getByLabelText('Send analytics events'));
     await waitFor(() => expect((screen.getByLabelText('Send analytics events') as HTMLInputElement).checked).toBe(false));
     fireEvent.click(save);
 
-    expect(stored()).toEqual({ apiBaseUrl: 'https://api.example.com', featuredSearches: ['VAS', 'IOZ'], idLimit: 200, analytics: false });
+    expect(stored()).toEqual({ apiBaseUrl: 'https://api.example.com', idLimit: 200, analytics: false });
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it('clamps the pills to the typed Most popular pills, and orphanSize below Results per load', async () => {
+  it('clamps the pills to the typed Maximum popular pills on any screen, and orphanSize below Results per load', async () => {
     await openSettings();
-    fireEvent.change(screen.getByLabelText('Most popular pills'), { target: { value: '5' } });
+    fireEvent.change(screen.getByLabelText('Maximum popular pills on any screen'), { target: { value: '5' } });
     fireEvent.change(screen.getByLabelText('Results per load'), { target: { value: '2' } });
-    fireEvent.change(screen.getByLabelText('Smallest last page'), { target: { value: '9' } });
+    fireEvent.change(screen.getByLabelText('Orphan size'), { target: { value: '9' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save and reload' }));
 
     expect(stored()).toEqual({ popularMax: 5, popularMobile: 5, popularTablet: 5, popularDesktop: 5, documentLimit: 2, orphanSize: 1 });
   });
 
-  it('shows saved strings, and falls back to the defaults when the stored ones are invalid', async () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ apiBaseUrl: 'ftp://nope', featuredSearches: ['vas'] }));
+  it('falls back to the defaults when the stored ones are invalid', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ apiBaseUrl: 'ftp://nope' }));
     await openSettings();
     expect((screen.getByLabelText('API address') as HTMLInputElement).value).toBe(original.apiBaseUrl);
-    expect((screen.getByLabelText('Featured searches') as HTMLInputElement).value).toBe('vas');
   });
 
   it('puts the Save button in the drawer footer only on the Settings tab', async () => {
@@ -253,27 +251,6 @@ describe('Settings tab', () => {
 });
 
 describe('Reset popular searches', () => {
-  it('Clear asks first, and cancelling does nothing', async () => {
-    const api = await openSettings();
-    fireEvent.click(screen.getByRole('button', { name: 'Clear popular searches' }));
-    fireEvent.click((await confirmDialog(/clear popular searches/i)).getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    expect(api.clearSearchLog).not.toHaveBeenCalled();
-  });
-
-  it('Clear, once confirmed, calls the API, says so and refetches the popular searches', async () => {
-    const api = await openSettings();
-    await screen.findByRole('button', { name: 'A200', hidden: true });
-    expect(api.popular).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear popular searches' }));
-    fireEvent.click((await confirmDialog(/clear popular searches/i)).getByRole('button', { name: 'Clear popular searches' }));
-
-    expect(await screen.findByText('Popular searches cleared.')).toBeTruthy();
-    expect(api.clearSearchLog).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(api.popular).toHaveBeenCalledTimes(2));
-  });
-
   it('Restore demo popular searches asks first, then calls the API', async () => {
     const api = await openSettings();
     fireEvent.click(screen.getByRole('button', { name: 'Restore demo popular searches' }));
@@ -291,10 +268,10 @@ describe('Reset popular searches', () => {
 
   it('explains a 404 as the API having its development routes off', async () => {
     const api = fakeApi();
-    api.clearSearchLog.mockRejectedValue(new ApiError(404, 'not found'));
+    api.restoreSeed.mockRejectedValue(new ApiError(404, 'not found'));
     await openSettings(api);
-    fireEvent.click(screen.getByRole('button', { name: 'Clear popular searches' }));
-    fireEvent.click((await confirmDialog(/clear popular searches/i)).getByRole('button', { name: 'Clear popular searches' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore demo popular searches' }));
+    fireEvent.click((await confirmDialog(/restore demo popular searches/i)).getByRole('button', { name: 'Restore demo popular searches' }));
 
     expect(await screen.findByText(/ENABLE_INSIGHTS/)).toBeTruthy();
   });
