@@ -97,7 +97,7 @@ The app is a single page in [`web/`](./web/): a search input with a suggestions 
 - **API changes.** Two search endpoints and the search log are added to the mock in `api/`. Existing endpoints are unchanged. See [`api/README.md`](./api/README.md).
 - **Styling.** Chakra UI v3, themed from [`DESIGN.md`](./DESIGN.md).
 
-The gear icon in the header is for development only. It shows the searches that found nothing and a few demo settings. It appears when you run `npm run dev` and is switched off in a production build, so a real visitor wouldn't see it.
+The gear icon in the header is there for this demo only. It opens the searches that found nothing, problems the page ran into, and a few demo settings. A production version of the page wouldn't have the gear at all.
 
 ## Architecture
 
