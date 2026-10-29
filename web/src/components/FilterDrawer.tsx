@@ -53,21 +53,24 @@ export function FilterDrawer({
               <FilterPanel counts={counts} pending={pending} onPendingChange={onPendingChange} />
             </Drawer.Body>
             <Drawer.Footer>
-              <Button
-                variant="outline"
-                size="sm"
-                width="56"
-                maxWidth="full"
-                loading={counts.loading}
-                loadingText="Counting results"
-                disabled={counts.count === 0}
-                onClick={() => {
-                  onApply();
-                  setOpen(false);
-                }}
-              >
-                {counts.count === undefined ? 'Show results' : applyLabel(counts.count)}
-              </Button>
+              {/* Hidden while the counts have failed, so there is no apply button without a count. */}
+              {!counts.error && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  width="56"
+                  maxWidth="full"
+                  loading={counts.loading}
+                  loadingText="Counting results"
+                  disabled={counts.count === 0}
+                  onClick={() => {
+                    onApply();
+                    setOpen(false);
+                  }}
+                >
+                  {counts.count === undefined ? 'Show results' : applyLabel(counts.count)}
+                </Button>
+              )}
             </Drawer.Footer>
             <Drawer.CloseTrigger asChild>
               <CloseButton aria-label="Close filters" />

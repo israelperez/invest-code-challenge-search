@@ -12,11 +12,9 @@ afterEach(() => {
 });
 
 const LABELS = [
+  'Major failures (issues message shown)',
   'Batches that reported missing IDs',
   'Incomplete batch responses',
-  'First batch failed to load',
-  'Load more failed',
-  'Restart after a stale snapshot failed',
   'API calls that failed',
   'Logos that failed to load',
   'Instruments with no display name',
@@ -26,7 +24,7 @@ const rowTexts = () => Array.from(screen.getAllByRole('list')[0].children).map((
 const rowOf = (label: string) => screen.getByText(label).closest('li')!;
 
 describe('Data problems section', () => {
-  it('shows the heading, the demo banner and eight rows in order, all at 0', () => {
+  it('shows the heading, the demo banner and six rows in order, all at 0', () => {
     render(<DataProblems />, { wrapper: problemsWrapper() });
     expect(screen.getByRole('heading', { name: 'Data problems (this session, demo)' })).toBeTruthy();
     expect(screen.getByText('Demo data, development only. A real build would report these to an error-reporting service.')).toBeTruthy();
@@ -38,16 +36,16 @@ describe('Data problems section', () => {
     (['batch_ids_missing', 'logo_failed', 'logo_failed', 'snapshot_stale', 'late_response_discarded'] as const).forEach((e) => problems.record(e));
     render(<DataProblems />, { wrapper: problemsWrapper({ problems }) });
     const texts = rowTexts();
-    expect(texts).toHaveLength(8);
-    expect(texts[0]).toBe('Batches that reported missing IDs1');
-    expect(texts[6]).toBe('Logos that failed to load2');
+    expect(texts).toHaveLength(6);
+    expect(texts[1]).toBe('Batches that reported missing IDs1');
+    expect(texts[4]).toBe('Logos that failed to load2');
   });
 
   it('updates live when a problem is recorded', () => {
     const problems = createProblemCounter();
     render(<DataProblems />, { wrapper: problemsWrapper({ problems }) });
-    act(() => problems.record('load_more_failed'));
-    expect(rowTexts()[3]).toBe('Load more failed1');
+    act(() => problems.record('major_failure'));
+    expect(rowTexts()[0]).toBe('Major failures (issues message shown)1');
   });
 
   it('offers a disclosure only on rows with a count above 0', () => {
@@ -56,7 +54,7 @@ describe('Data problems section', () => {
     render(<DataProblems />, { wrapper: problemsWrapper({ problems }) });
     expect(screen.getAllByRole('group')).toHaveLength(1);
     expect(within(rowOf('Logos that failed to load')).getByText('GRV (https://example.test/GRV_AU.png)')).toBeTruthy();
-    expect(rowOf('Load more failed').querySelector('details')).toBeNull();
+    expect(rowOf('API calls that failed').querySelector('details')).toBeNull();
   });
 
   it('keeps a row open while its count rises, and lists entries after it opens', () => {

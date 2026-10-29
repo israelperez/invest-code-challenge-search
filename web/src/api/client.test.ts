@@ -29,6 +29,33 @@ describe('request gateway', () => {
     expect(report).toHaveBeenCalledWith('api_call_failed', expect.objectContaining({ level: 'error', entries: ['version: GET /version failed with 503'] }));
   });
 
+  it.each([
+    ['searchIndex', (api: ReturnType<typeof setup>['api']) => api.searchIndex({}), 'search-index'],
+    ['instrumentsBatch', (api: ReturnType<typeof setup>['api']) => api.instrumentsBatch({ ids: ['A:AU'], snapshot: 1 }), 'instruments-batch'],
+  ])('reports a final %s failure once as major_failure', async (_name, call, caller) => {
+    const { api, report } = setup(json(503), json(503), json(503), json(503));
+    await expect(call(api)).rejects.toMatchObject({ status: 503 });
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledWith('major_failure', expect.objectContaining({ level: 'error', message: expect.stringMatching(/^Major failure/), entries: [expect.stringMatching(new RegExp(`^${caller}: `))] }));
+  });
+
+  it('keeps api_call_failed for a minor caller, facet-issuer included', async () => {
+    const { api, report } = setup(json(400), json(400));
+    await expect(api.facetIssuer()).rejects.toBeDefined();
+    await expect(api.popular(5)).rejects.toBeDefined();
+    expect(report.mock.calls.map(([event]) => event)).toEqual(['api_call_failed', 'api_call_failed']);
+  });
+
+  it('does not report a major caller\'s 409 or abort', async () => {
+    const { api, report } = setup(json(409, { indexed_at: 2 }), 'hang');
+    await expect(api.searchIndex({})).rejects.toMatchObject({ status: 409 });
+    const controller = new AbortController();
+    const call = api.instrumentsBatch({ ids: [], snapshot: 1 }, controller.signal);
+    controller.abort();
+    await expect(call).rejects.toBeDefined();
+    expect(report).not.toHaveBeenCalled();
+  });
+
   it('retries a network error and does not report on success', async () => {
     const { api, fetchMock, report } = setup(new TypeError('Failed to fetch'), json(200, { indexed_at: 1 }));
     await expect(api.version()).resolves.toEqual({ indexed_at: 1 });

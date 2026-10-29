@@ -31,6 +31,9 @@ export type ApiClientOptions = {
   timeoutMs?: number;
 };
 
+// Callers the page cannot show results without; their final failure is a major failure (ADR 0007). Every other caller is minor.
+const MAJOR_CALLERS = new Set(['search-index', 'instruments-batch']);
+
 // Network errors, timeouts and 5xx are worth another go; a 4xx is the server's final answer (the 409 snapshot flow relies on it).
 const retryable = (error: unknown) => !(error instanceof ApiError) || error.status >= 500;
 
@@ -78,9 +81,10 @@ export function createApiClient(
         }
         // 409 is the normal stale-snapshot flow, reported as snapshot_stale by its caller.
         if (!(error instanceof ApiError && error.status === 409)) {
-          report('api_call_failed', {
+          const major = MAJOR_CALLERS.has(caller);
+          report(major ? 'major_failure' : 'api_call_failed', {
             level: 'error',
-            message: 'API call failed after retries',
+            message: major ? 'Major failure: API call failed after retries' : 'API call failed after retries',
             detail: error,
             entries: [`${caller}: ${error instanceof Error ? error.message : String(error)}`],
           });

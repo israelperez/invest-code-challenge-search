@@ -1,13 +1,14 @@
-import { Alert, Box, Button, Field, Flex, Heading, NativeSelect, Skeleton, Text, VisuallyHidden } from '@chakra-ui/react';
+import { Box, Button, Field, Flex, Heading, NativeSelect, Skeleton, Text, VisuallyHidden } from '@chakra-ui/react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { InstrumentDocument, OrderBy, SearchIndexResponse } from '../api/types';
 import { config } from '../config';
-import type { SearchState } from '../search/build-search-request';
+import { buildSearchRequest, type SearchState } from '../search/build-search-request';
 import { useRestartSearch } from '../search/queries';
-import { failureEntry } from '../search/report';
 import { SnapshotStaleError } from '../search/search-source';
 import { useSearchBackend } from '../search/search-source-context';
+import { useRetry } from '../search/use-retry';
+import { MajorFailure } from './MajorFailure';
 import { ResultRow } from './ResultRow';
 
 const List = ({ children }: { children: React.ReactNode }) => (
@@ -54,6 +55,7 @@ export function Results({
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   const count = query.data?.count ?? 0;
+  const { retrying, retry } = useRetry(() => query.refetch(), JSON.stringify(buildSearchRequest(state)));
 
   // The header stays mounted through error, loading and loaded, so the select keeps focus and never moves.
   return (
@@ -87,17 +89,10 @@ export function Results({
         </Field.Root>
       </Flex>
       {appliedFilters}
-      {query.isError ? (
-        <Alert.Root status="error" marginTop="6">
-          <Alert.Indicator />
-          <Alert.Content>
-            <Alert.Title>Something went wrong</Alert.Title>
-            <Alert.Description>We could not load results. Check your connection and try again.</Alert.Description>
-          </Alert.Content>
-          <Button onClick={() => void query.refetch()} minWidth="24">
-            Retry
-          </Button>
-        </Alert.Root>
+      {query.isError || retrying ? (
+        <Box marginTop="6">
+          <MajorFailure retrying={retrying} onRetry={() => void retry()} />
+        </Box>
       ) : query.isPending ? (
         <Box aria-busy="true" aria-label="Loading results">
           <List>
@@ -147,6 +142,7 @@ function LoadedResults({
   const [announcement, setAnnouncement] = useState('');
   const abortRef = useRef<AbortController | null>(null);
   const firstNewRef = useRef<HTMLDivElement>(null);
+  const { retrying, retry } = useRetry(() => loadMore(), data);
 
   // A new first batch (new search, refinement or restart) discards the progress made on the old one.
   const progress = stored.base === data ? stored : startProgress(data);
@@ -164,7 +160,8 @@ function LoadedResults({
     const controller = new AbortController();
     abortRef.current = controller;
     const { signal } = controller;
-    setProgress({ ...progress, status: 'loading' });
+    // A Retry keeps the message mounted (its button spins), so only a fresh load more starts the skeleton rows.
+    if (progress.status !== 'error') setProgress({ ...progress, status: 'loading' });
     try {
       const batch = await source.loadMore(state, progress.consumed, signal);
       if (signal.aborted) return;
@@ -187,12 +184,9 @@ function LoadedResults({
           setAnnouncement('Results were refreshed');
           headingRef.current?.focus();
           return;
-        } catch (restartError) {
+        } catch {
           if (signal.aborted) return;
-          report('restart_failed', { level: 'error', message: 'Restarting after a stale snapshot failed', detail: restartError, entries: [failureEntry(state.term, restartError)] });
         }
-      } else {
-        report('load_more_failed', { level: 'error', message: 'Loading more results failed', detail: error, entries: [failureEntry(state.term, error)] });
       }
       setProgress({ ...progress, status: 'error' });
     }
@@ -222,16 +216,7 @@ function LoadedResults({
           </List>
           <Box marginTop="4">
             {progress.status === 'error' ? (
-              <Alert.Root status="error">
-                <Alert.Indicator />
-                <Alert.Content>
-                  <Alert.Title>Something went wrong</Alert.Title>
-                  <Alert.Description>We could not load more results. Check your connection and try again.</Alert.Description>
-                </Alert.Content>
-                <Button onClick={() => void loadMore()} minWidth="24">
-                  Retry
-                </Button>
-              </Alert.Root>
+              <MajorFailure retrying={retrying} onRetry={() => void retry()} />
             ) : hasMore ? (
               <Button onClick={() => void loadMore()} loading={progress.status === 'loading'} disabled={stale} width="40">
                 Load more

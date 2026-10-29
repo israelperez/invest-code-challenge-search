@@ -230,6 +230,7 @@ describe('Popular search pills', () => {
     expect(screen.getByRole('region', { name: 'Popular searches' }).getAttribute('aria-busy')).toBe('true');
     expect(within(screen.getByRole('region', { name: 'Popular searches' })).queryAllByRole('button')).toEqual([]);
     expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('The app seems to be experiencing issues')).toBeNull();
   });
 
   it('pass axe', async () => {

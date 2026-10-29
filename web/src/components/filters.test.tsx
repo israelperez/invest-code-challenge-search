@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
 import '../../tests/component/jsdom-setup';
-import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FacetEntry, SearchIndexRequest } from '../../src/api/types';
 import { deferred, fake, fakeApi, fakeFacets, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
 
+const MESSAGE_TITLE = 'The app seems to be experiencing issues';
+const MESSAGE_BODY = 'Try again in a moment.';
 const isCounts = (body: SearchIndexRequest) => !body.include?.includes('documents');
 const countRequests = (api: FakeApi) => api.searchIndex.mock.calls.filter(([body]) => isCounts(body));
 const resultRequests = (api: FakeApi) => api.searchIndex.mock.calls.filter(([body]) => !isCounts(body));
@@ -295,6 +297,12 @@ describe('Filters', () => {
       });
       return base;
     };
+    // A counts failure leaves the filter panel with the message alone: no Clear filters, no options.
+    const expectOnlyTheMessage = () => {
+      expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+      expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+      expect(screen.queryAllByRole('radio')).toHaveLength(0);
+    };
     const noNumbers = () => expect(screen.queryByText('834')).toBeNull();
 
     it.each([
@@ -309,19 +317,34 @@ describe('Filters', () => {
       failNextCounts(api);
       await tickOption(afterSuccess ? /Shares \(equities\)/ : /ETFs/);
 
-      expect(screen.getByText("Couldn't update the counts.")).toBeTruthy();
+      expect(screen.getByText(MESSAGE_TITLE)).toBeTruthy();
+      expect(screen.getByText(MESSAGE_BODY)).toBeTruthy();
+      expect(screen.queryByText("Couldn't update the counts.")).toBeNull();
       noNumbers();
-      expect(applyButton()!.textContent).toBe('Show results');
-      expect(applyButton()!.disabled).toBe(false);
-      expect(box(/Shares \(equities\)/).disabled).toBe(false);
+      expectOnlyTheMessage();
+      expect(applyButton()).toBeNull();
 
       const before = countRequests(api).length;
+      const retry = deferred<Awaited<ReturnType<typeof api.searchIndex>>>();
+      const base = api.searchIndex.getMockImplementation()!;
+      api.searchIndex.mockImplementationOnce(async () => retry.promise);
       await click(screen.getByRole('button', { name: 'Retry' }));
+      // Message stays mounted, its button disabled and the content hidden, until the retry settles.
+      expect(screen.getByText(MESSAGE_TITLE)).toBeTruthy();
+      expectOnlyTheMessage();
+      expect((screen.getByText('Retry').closest('button') as HTMLButtonElement).disabled).toBe(true);
+      await act(async () => {
+        retry.resolve(await base({ ...countRequests(api).at(-1)![0] }));
+      });
       await tick(10);
 
       expect(countRequests(api)).toHaveLength(before + 1);
-      expect(screen.queryByText("Couldn't update the counts.")).toBeNull();
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
       expect(screen.getAllByText('834').length).toBeGreaterThan(0);
+      // The content is back, with the apply button.
+      expect(screen.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
+      expect(box(/Shares \(equities\)/).disabled).toBe(false);
+      expect(applyButton()).toBeTruthy();
     });
   });
 
@@ -406,6 +429,83 @@ describe('Filters', () => {
     });
     afterEach(() => {
       window.matchMedia = mobileMatchMedia;
+    });
+
+    it('shows the major failure message in the rail when the counts fail, leaving the results alone', async () => {
+      const api = await setup();
+      const base = api.searchIndex.getMockImplementation()!;
+      api.searchIndex.mockImplementation(async (body, signal) => {
+        if (isCounts(body)) throw new Error('boom');
+        return base(body, signal);
+      });
+      await click(box(/ETFs/));
+      await tick(10);
+
+      expect(screen.getAllByText(MESSAGE_TITLE)).toHaveLength(1);
+      expect(screen.queryByText("Couldn't update the counts.")).toBeNull();
+      expect(rows().length).toBeGreaterThan(0);
+      // Only the message stays in the rail until a Retry works.
+      const rail = within(screen.getByRole('complementary', { name: 'Filters' }));
+      expect(rail.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+      expect(rail.queryAllByRole('checkbox')).toHaveLength(0);
+
+      api.searchIndex.mockImplementation(base);
+      await click(screen.getByRole('button', { name: 'Retry' }));
+      await tick(10);
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+      expect(rail.getByRole('button', { name: 'Clear filters' })).toBeTruthy();
+      expect(box(/ETFs/).checked).toBe(true);
+    });
+
+    it('does not revive an abandoned Retry when the search goes back to the same counts (A, B, A)', async () => {
+      const api = fakeApi();
+      const base = api.searchIndex.getMockImplementation()!;
+      let attempt = 0;
+      api.searchIndex.mockImplementation(async (body, signal) => {
+        // The first counts for "a" fail and their Retry hangs; every later request succeeds.
+        if (isCounts(body) && body.search_text === 'a' && attempt++ < 2) {
+          if (attempt === 1) throw new Error('boom');
+          return new Promise(() => undefined);
+        }
+        return base(body, signal);
+      });
+      renderApp(api);
+      fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+      await screen.findByText(MESSAGE_TITLE);
+      fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+      await waitFor(() => expect((screen.getByText('Retry').closest('button') as HTMLButtonElement).disabled).toBe(true));
+
+      await search('b');
+      await waitFor(() => expect(screen.queryByText(MESSAGE_TITLE)).toBeNull());
+      await search('a');
+      await waitFor(() => expect(screen.getAllByText('834').length).toBeGreaterThan(0));
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+    });
+
+    it('does not keep the message over the counts of a new search while an earlier Retry still runs', async () => {
+      const api = await setup();
+      const base = api.searchIndex.getMockImplementation()!;
+      let attempt = 0;
+      api.searchIndex.mockImplementation(async (body, signal) => {
+        // Only the ETFs-only counts fail, and their Retry hangs; other counts succeed.
+        if (isCounts(body) && body.kind?.length === 1 && body.kind[0] === 'etf') {
+          if (attempt++ === 0) throw new Error('boom');
+          return new Promise(() => undefined);
+        }
+        return base(body, signal);
+      });
+      await click(box(/ETFs/));
+      await tick(10);
+      await click(screen.getByRole('button', { name: 'Retry' }));
+      expect((screen.getByText('Retry').closest('button') as HTMLButtonElement).disabled).toBe(true);
+
+      // The options are hidden while the counts have failed, so the way on is a new search.
+      fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'b' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+      await tick(50);
+      expect(screen.queryByText(MESSAGE_TITLE)).toBeNull();
+      expect(screen.getAllByText('20').length).toBeGreaterThan(0);
     });
 
     it('applies a tick at once, with no apply button', async () => {

@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { buildSearchRequest, type Filters } from '../search/build-search-request';
 import { filterSections, type FilterOption, type FilterSection } from '../search/filter-options';
 import type { useFacetCounts } from '../search/queries';
+import { MajorFailure } from './MajorFailure';
 import { RawHint } from '../settings/RawHint';
 
 // Same height as a label line, so a row never changes height between loading and loaded.
@@ -127,7 +128,7 @@ function Section({ section, loading, onChange }: { section: FilterSection; loadi
 
 // The sections and their controls, shared by the rail beside the results and the mobile drawer.
 export function FilterPanel({
-  counts: { facets, known, loading, error, retry },
+  counts: { facets, known, loading, error, retrying, retry },
   pending,
   onPendingChange,
 }: {
@@ -137,19 +138,14 @@ export function FilterPanel({
 }) {
   const key = (filters: Filters) => JSON.stringify(buildSearchRequest({ term: '', filters }));
 
+  // A counts failure leaves only the message; the options and Clear filters return once a Retry works.
+  if (error) return <MajorFailure retrying={retrying} onRetry={retry} />;
+
   return (
     <Flex direction="column" gap="5">
       <Button variant="outline" size="sm" width="28" alignSelf="flex-start" disabled={key(pending) === key({})} onClick={() => onPendingChange({})}>
         Clear filters
       </Button>
-      {error && (
-        <Flex alignItems="center" gap="2" wrap="wrap">
-          <Text fontSize="sm">Couldn't update the counts.</Text>
-          <Button variant="outline" size="sm" onClick={retry}>
-            Retry
-          </Button>
-        </Flex>
-      )}
       {filterSections(facets, pending, known).map((section) =>
         section.featured ? (
           <IssuerSection key={section.id} section={section} loading={loading} onChange={onPendingChange} />
