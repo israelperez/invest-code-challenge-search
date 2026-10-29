@@ -164,7 +164,7 @@ I ran this like a small team project, so the process is visible in the repo.
 
 - **Plan first, and it took the longest.** I spent a working day on the plan before writing any code: about 7.5 hours in one session on 25 October (roughly 5 of them back and forth with Claude, the rest breaks). I worked out what the page had to do and what could go wrong with it, and every feature and risk went into the plan and the [roadmap](./docs/roadmap.md), which lists 68 items split into must-haves and extras. The plan is in [`docs/planning/`](./docs/planning/), with the glossary and the first three ADRs. A second model reviewed it for five rounds, and I made the calls when the reviewers and I disagreed, such as keeping all seven filters and the ID-first design, and dropping browser end-to-end tests. The review log is kept.
 - **One ticket per slice.** Each piece of work is a GitHub issue with acceptance criteria and its blockers, built on its own branch.
-- **Decisions on record.** When a decision changed the design, it went into an [ADR](./docs/adr/) with the options I rejected. ADR 0005 reverses a line in an earlier ticket, and says so.
+- **Decisions on record.** The plan holds every decision. The few that were hard to reverse, surprising and a real trade-off went into an [ADR](./docs/adr/) with the options I rejected. ADR 0005 reverses a line in an earlier ticket, and says so.
 - **Review before every merge.** Codex reviewed each change adversarially before its pull request. The pull request lists each finding and whether it was fixed or declined, with the reason.
 - **I merged every pull request myself.**
 
