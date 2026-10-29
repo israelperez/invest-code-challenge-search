@@ -14,7 +14,7 @@ The header, search box and sort always stay, so the term, filters and sort survi
 
 Before this, each failure had its own wording ("Something went wrong … Check your connection and try again" for results and Load more, "Couldn't update the counts." in the rail), and one outage on a tablet showed in two Data problems rows with three counts: two `api_call_failed` (results and counts) and one `first_batch_failed`. Once the gateway has given up on a major call, its retries have already covered any blip of a few seconds, so something major has happened, and users get the same message wherever it shows.
 
-Retry stays because the gateway covers seconds (about 21 seconds at most) and an outage can last minutes. Without it the only way back is a reload, which loses the term and filters. "Check your connection" was dropped: in production most outages are on the server side, so it would blame users for a fault that isn't theirs.
+Retry stays because the gateway covers seconds (about 21 seconds at most _(Superseded 2026-10-30 (Israel): about 22)_) and an outage can last minutes. Without it the only way back is a reload, which loses the term and filters. "Check your connection" was dropped: in production most outages are on the server side, so it would blame users for a fault that isn't theirs.
 
 The filter counts are major because they come from the same `POST /search/index` as the results: if the counts fail, the results almost certainly fail too. `facet-issuer` is minor despite its name, because it only feeds the issuer suggestions while typing.
 

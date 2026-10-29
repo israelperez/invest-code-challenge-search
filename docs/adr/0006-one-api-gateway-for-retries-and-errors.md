@@ -4,7 +4,7 @@ Every API call goes through `request(caller, path, init)` in `web/src/api/client
 
 ## Why
 
-Before this, one outage gave 4 `searchIndex` calls and 4 `first_batch_failed` reports over about 7 seconds. TanStack Query's default 3 retries re-ran the whole `queryFn`, including its report, on every attempt. The client itself did not retry, and the search logger had one separate retry for the log call. The component tests hid it because their client had `retry: false`. Retries spread over several layers multiply the attempts, the waiting and the noise, and no single place says how long a user waits. With one gateway the worst case is known: 4 attempts, a 5 second timeout each, and waits of 250, 500 and 1000 ms, about 21 seconds.
+Before this, one outage gave 4 `searchIndex` calls and 4 `first_batch_failed` reports over about 7 seconds. TanStack Query's default 3 retries re-ran the whole `queryFn`, including its report, on every attempt. The client itself did not retry, and the search logger had one separate retry for the log call. The component tests hid it because their client had `retry: false`. Retries spread over several layers multiply the attempts, the waiting and the noise, and no single place says how long a user waits. With one gateway the worst case is known: 4 attempts, a 5 second timeout each, and waits of 250, 500 and 1000 ms, about 21 seconds. _Superseded 2026-10-30 (Israel): 21.75 seconds, so about 22._
 
 Only network errors, timeouts and 5xx are retried, because those can pass on their own. A 4xx is the server's final answer, and the 409 snapshot flow depends on it: a stale snapshot must reach the caller at once so it can reload the first batch. A 409 is also not reported as `api_call_failed`, because it is already `snapshot_stale`. A caller abort (a new search, a closed panel) is not an error: it is never retried or reported, and an abort during backoff stops at once. Cancelling stays with callers through `AbortSignal`.
 
@@ -16,7 +16,7 @@ Only network errors, timeouts and 5xx are retried, because those can pass on the
 
 ## Consequences
 
-- One outage now takes a few quick retries before the error and Retry button show, up to about 21 seconds in the worst case. A short blip never reaches the user.
+- One outage now takes a few quick retries before the error and Retry button show, up to about 21 seconds in the worst case _(Superseded 2026-10-30 (Israel): about 22)_. A short blip never reaches the user.
 - The search log keeps its idempotency on `submission_id` (ADR 0002), which is what makes retrying `POST /searches` safe.
 - Failures are reported in one place, so the Data problems panel is the simulated error tracking: a real build would send the same report to an error-tracking service.
 - Any new endpoint call must go through `request()` to get the timeout, retries and reporting.
