@@ -251,6 +251,21 @@ describe('Popular searches in the empty-search popup', () => {
     expect(options()).toEqual(['Vanguard', 'A200', 'NDQ', 'QAU', 'DHHF', 'HQLT']);
   });
 
+  it('holds only its groups inside the listbox, so a screen reader counts nothing extra', async () => {
+    setup(['Vanguard'], { popular });
+    await focus();
+
+    expect([...listbox().children].map((child) => child.getAttribute('role'))).toEqual(['group', 'group']);
+  });
+
+  it('names the listbox with the size of each group, for a screen reader', async () => {
+    setup(['Vanguard', 'gold'], { popular });
+    await focus();
+
+    expect(screen.getByRole('listbox', { hidden: true }).getAttribute('aria-labelledby')).toBeTruthy();
+    expect(screen.getByRole('listbox', { name: 'Recent searches, 2 terms and Popular searches, 5 terms', hidden: true })).toBeTruthy();
+  });
+
   it('shows the popular group alone when nothing was searched yet', async () => {
     setup([], { popular });
     await focus();

@@ -110,6 +110,13 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
     [lookup.items, fresh, recentMode, recentOptions],
   );
 
+  // The listbox's spoken name: each group with its size, since a screen reader counts the groups, not the options inside them.
+  const listName =
+    collection
+      .group()
+      .map(([group, items]) => `${group}, ${items.length} ${group === 'Matching shares and ETFs' ? (items.length === 1 ? 'instrument' : 'instruments') : items.length === 1 ? 'term' : 'terms'}`)
+      .join(' and ') || (recentMode ? 'Recent searches' : 'Suggestions');
+
   function submit(event: FormEvent) {
     event.preventDefault();
     setWantOpen(false);
@@ -193,10 +200,10 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
                 </Button>
               </Flex>
             </Combobox.Control>
+            {/* Names the listbox; the visible label belongs to the input. Outside the listbox, so a screen reader's item count isn't inflated by it. */}
+            <VisuallyHidden id={listLabelId}>{listName}</VisuallyHidden>
             <Combobox.Positioner>
               <Combobox.Content>
-                {/* Names the listbox; the visible label belongs to the input. */}
-                <VisuallyHidden id={listLabelId}>{recentMode ? (popularItems.length ? 'Recent and popular searches' : 'Recent searches') : 'Suggestions'}</VisuallyHidden>
                 {/* Combobox.Empty, not plain text: Chakra hides an open list with no items unless it holds one. */}
                 <Combobox.Empty paddingX="3" paddingY="2" color="fg.muted">
                   {recentMode ? (
