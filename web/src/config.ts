@@ -25,9 +25,6 @@ export const settingDescriptions = {
   popularMax: 'The most popular search pills any screen size can show. The three pill counts cannot go higher than this.',
   popularInPopup: 'How many popular searches are listed under your recent ones when you click the empty search box.',
   recentSearches: 'When on, the app remembers your searches and offers them when you click the search box. When off, none are offered.',
-  insightsEnabled: 'Shows the Insights tab in this panel. It also needs the API started with ENABLE_INSIGHTS=true.',
-  dataProblemsEnabled: 'Shows the Data problems section in the Insights tab.',
-  analytics: 'When on, product events and problem reports go to analytics (the console, for now). When off, problems print as plain console output.',
 } as const;
 
 export const config = {
@@ -73,16 +70,8 @@ export const config = {
   recentSearches: true,
   // settingDescriptions.recentSearchLimit
   recentSearchLimit: 4,
-  // settingDescriptions.insightsEnabled; a development-only feature flag: on under `vite` and Vitest, off in a production build.
-  insightsEnabled: import.meta.env.DEV,
-  // Feature flag: the Settings tab in the gear panel (development only, like insightsEnabled).
-  settingsEnabled: import.meta.env.DEV,
-  // settingDescriptions.dataProblemsEnabled; a development-only feature flag, like insightsEnabled.
-  dataProblemsEnabled: import.meta.env.DEV,
   // settingDescriptions.showRawData; off by default.
   showRawData: false,
-  // settingDescriptions.analytics; a feature flag.
-  analytics: true,
 } as const;
 
 // One request serves every size, so resizing never refetches. A function because demo settings change popularShown at startup; at least 1, which the API requires.

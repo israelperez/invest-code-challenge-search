@@ -8,8 +8,7 @@ import { config, settingDescriptions } from '../config';
 import { fakeApi, renderApp } from '../../tests/component/app-harness';
 import { STORAGE_KEY } from './settings';
 
-const flags = config as { settingsEnabled: boolean; insightsEnabled: boolean };
-const original = { ...config } as typeof config & typeof flags;
+const original = { ...config };
 const reload = vi.fn();
 
 beforeEach(() => {
@@ -18,7 +17,7 @@ beforeEach(() => {
   vi.stubGlobal('location', { ...window.location, reload });
 });
 afterEach(() => {
-  Object.assign(flags, original);
+  Object.assign(config, original);
   cleanup();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -44,28 +43,12 @@ describe('Settings tab', () => {
     for (const text of Object.values(settingDescriptions)) expect(screen.getByText(text)).toBeTruthy();
   });
 
-  it('is absent when the settingsEnabled flag is off, and Insights becomes the one tab', async () => {
-    flags.settingsEnabled = false;
-    renderApp(fakeApi());
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-
-    expect(await screen.findByRole('tab', { name: 'Insights' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'Settings' })).toBeNull();
-  });
-
-  it('opens on Settings when Insights is off', async () => {
-    flags.insightsEnabled = false;
-    renderApp(fakeApi());
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
-
-    expect(await screen.findByLabelText('Results per load')).toBeTruthy();
-  });
-
-  it('shows every editable setting, grouped under headings, and not settingsEnabled or searchStaleTimeMs', async () => {
+  it('shows every editable setting, grouped under headings, and not searchStaleTimeMs', async () => {
     await openSettings();
-    for (const label of ['Suggestion delay (ms)', 'API address', 'Maximum popular pills on any screen', 'Orphan size', 'Maximum IDs per search', 'Remember recent searches', 'Show the Insights tab', 'Send analytics events']) expect(screen.getByLabelText(label)).toBeTruthy();
-    for (const name of ['Results', 'Suggestions', 'Popular and recent searches', 'API', 'Development features']) expect(screen.getByRole('heading', { name })).toBeTruthy();
-    expect(screen.queryByLabelText(/settings tab|settingsEnabled/i)).toBeNull();
+    for (const label of ['Suggestion delay (ms)', 'API address', 'Maximum popular pills on any screen', 'Orphan size', 'Maximum IDs per search', 'Remember recent searches']) expect(screen.getByLabelText(label)).toBeTruthy();
+    for (const label of ['Show the Insights tab', 'Show data problems in Insights', 'Send analytics events']) expect(screen.queryByLabelText(label)).toBeNull();
+    for (const name of ['Results', 'Suggestions', 'Popular and recent searches', 'API']) expect(screen.getByRole('heading', { name })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Development features' })).toBeNull();
     expect(screen.queryByLabelText(/stale/i)).toBeNull();
   });
 
@@ -75,11 +58,11 @@ describe('Settings tab', () => {
     expect(save.closest('form')).toBeNull();
     fireEvent.change(screen.getByLabelText('API address'), { target: { value: ' https://api.example.com ' } });
     fireEvent.change(screen.getByLabelText('Maximum IDs per search'), { target: { value: '200' } });
-    fireEvent.click(screen.getByLabelText('Send analytics events'));
-    await waitFor(() => expect((screen.getByLabelText('Send analytics events') as HTMLInputElement).checked).toBe(false));
+    fireEvent.click(screen.getByLabelText('Remember recent searches'));
+    await waitFor(() => expect((screen.getByLabelText('Remember recent searches') as HTMLInputElement).checked).toBe(false));
     fireEvent.click(save);
 
-    expect(stored()).toEqual({ apiBaseUrl: 'https://api.example.com', idLimit: 200, analytics: false });
+    expect(stored()).toEqual({ apiBaseUrl: 'https://api.example.com', idLimit: 200, recentSearches: false });
     expect(reload).toHaveBeenCalledTimes(1);
   });
 

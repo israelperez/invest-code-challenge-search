@@ -12,7 +12,6 @@ import { applySettings } from './settings/settings';
 import { createClientId } from './search/client-id';
 import { createPopularSource } from './search/popular-source';
 import { createRecentSearchStore } from './search/recent-search-store';
-import { consoleReport } from './search/report';
 import { createSearchLogger } from './search/search-logger';
 import { createSearchSource } from './search/search-source';
 import { createSuggestionSource } from './search/suggestion-source';
@@ -23,10 +22,10 @@ import { system } from './theme';
 applySettings();
 
 const queryClient = createQueryClient();
-const analytics = createAnalytics({ enabled: config.analytics });
-// Flag off: problems print as plain console output, as before analytics existed.
+// Always on: events and problems go to analytics (the console stands in for an error-handling service).
+const analytics = createAnalytics();
 const problems = createProblemCounter();
-const report = countProblems(problems, config.analytics ? analytics.report : consoleReport);
+const report = countProblems(problems, analytics.report);
 const api = createApiClient(config.apiBaseUrl, { report });
 const backend = {
   api, source: createSearchSource(api, { ...config, report }),

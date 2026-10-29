@@ -3,8 +3,7 @@ import { config } from '../config';
 export const STORAGE_KEY = 'instrument-search.settings';
 
 // The demo settings: whole numbers within these bounds, on/off toggles, and two strings.
-// Not editable, on purpose: settingsEnabled (turning it off would hide the panel needed to turn it back on) and
-// searchStaleTimeMs (Infinity is deliberate because indexed_at invalidates instead, and a number field can't hold Infinity).
+// Not editable, on purpose: searchStaleTimeMs (Infinity is deliberate because indexed_at invalidates instead, and a number field can't hold Infinity).
 // Key order matters: documentLimit and popularMax come first because orphanSize and the popular pills are bounded by them.
 export const NUMBER_FIELDS = {
   documentLimit: { label: 'Results per load', min: 1, max: 50 },
@@ -30,7 +29,7 @@ export const NUMBER_FIELDS = {
 export type NumberKey = keyof typeof NUMBER_FIELDS;
 
 // The toggles; the tab places them.
-export const BOOLEAN_KEYS = ['popularSearchOneLine', 'showRawData', 'recentSearches', 'insightsEnabled', 'dataProblemsEnabled', 'analytics'] as const;
+export const BOOLEAN_KEYS = ['popularSearchOneLine', 'showRawData', 'recentSearches'] as const;
 export type BooleanKey = (typeof BOOLEAN_KEYS)[number];
 
 // The strings: just the API URL.

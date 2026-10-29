@@ -4,16 +4,12 @@ import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../api/client';
-import { config } from '../config';
 import { fakeApi, renderApp } from '../../tests/component/app-harness';
 
-const settings = config as { insightsEnabled: boolean };
-const original = settings.insightsEnabled;
-
 afterEach(() => {
-  settings.insightsEnabled = original;
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 const openPanel = () => fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
@@ -26,14 +22,13 @@ describe('Insights tab in the gear panel', () => {
     expect(await screen.findByRole('tab', { name: 'Insights' })).toBeTruthy();
   });
 
-  it('is absent when the insightsEnabled flag is off', async () => {
-    settings.insightsEnabled = false;
+  it('has no gear outside development', async () => {
+    vi.stubEnv('DEV', false);
     const api = fakeApi();
     renderApp(api);
-    openPanel();
 
-    await screen.findByRole('dialog');
-    expect(screen.queryByRole('tab', { name: 'Insights' })).toBeNull();
+    await screen.findByRole('button', { name: 'A200' });
+    expect(screen.queryByRole('button', { name: 'Open settings' })).toBeNull();
     expect(api.zeroResults).not.toHaveBeenCalled();
   });
 

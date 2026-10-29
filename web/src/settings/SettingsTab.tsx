@@ -15,9 +15,6 @@ const TOGGLE_LABELS: Record<BooleanKey, string> = {
   popularSearchOneLine: 'Keep popular pills on one line',
   showRawData: 'Show raw data',
   recentSearches: 'Remember recent searches',
-  insightsEnabled: 'Show the Insights tab',
-  dataProblemsEnabled: 'Show data problems in Insights',
-  analytics: 'Send analytics events',
 };
 
 // What the demo presenter can change, by area. Every editable key appears once.
@@ -26,7 +23,6 @@ const GROUPS: { title: string; keys: (NumberKey | BooleanKey | StringKey)[] }[] 
   { title: 'Suggestions', keys: ['suggestionMinChars', 'suggestionTermLimit', 'suggestionDebounceMs', 'suggestionSkeletonRows'] },
   { title: 'Popular and recent searches', keys: ['popularMax', 'popularMobile', 'popularTablet', 'popularDesktop', 'popularSearchOneLine', 'popularInPopup', 'recentSearches', 'recentSearchLimit'] },
   { title: 'API', keys: ['apiBaseUrl', 'apiRetries', 'apiRetryBaseMs', 'apiTimeoutMs'] },
-  { title: 'Development features', keys: ['insightsEnabled', 'dataProblemsEnabled', 'analytics'] },
 ];
 const isNumber = (key: string): key is NumberKey => key in NUMBER_FIELDS;
 const isBoolean = (key: string): key is BooleanKey => (BOOLEAN_KEYS as readonly string[]).includes(key);

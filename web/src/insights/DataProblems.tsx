@@ -1,6 +1,5 @@
 import { Alert, Box, Flex, Heading, Text } from '@chakra-ui/react';
 import { useId, useSyncExternalStore } from 'react';
-import { config } from '../config';
 import { DISTINCT_CAP } from './problem-counter';
 import type { ProblemEvent } from '../search/report';
 import { useSearchBackend } from '../search/search-source-context';
@@ -21,7 +20,6 @@ export function DataProblems() {
   const { problems } = useSearchBackend();
   const counts = useSyncExternalStore(problems.subscribe, problems.getSnapshot);
   const headingId = useId();
-  if (!config.dataProblemsEnabled) return null;
   return (
     <Box as="section" aria-labelledby={headingId}>
       <Heading as="h3" id={headingId} size="md" marginBottom="3">

@@ -4,14 +4,10 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { axe } from 'jest-axe';
 import { afterEach, describe, expect, it } from 'vitest';
 import { problemsWrapper } from '../../tests/component/app-harness';
-import { config } from '../config';
 import { DataProblems } from './DataProblems';
 import { createProblemCounter, DISTINCT_CAP } from './problem-counter';
 
-const settings = config as { dataProblemsEnabled: boolean };
-const original = settings.dataProblemsEnabled;
 afterEach(() => {
-  settings.dataProblemsEnabled = original;
   cleanup();
 });
 
@@ -90,12 +86,6 @@ describe('Data problems section', () => {
     problems.record('no_display_name', Array.from({ length: DISTINCT_CAP + 20 }, (_, i) => `X${i}:AU`));
     render(<DataProblems />, { wrapper: problemsWrapper({ problems }) });
     expect(within(rowOf('Instruments with no display name')).getByText(`and ${DISTINCT_CAP - 10}+ more`)).toBeTruthy();
-  });
-
-  it('is absent when the dataProblemsEnabled flag is off', () => {
-    settings.dataProblemsEnabled = false;
-    render(<DataProblems />, { wrapper: problemsWrapper() });
-    expect(screen.queryByRole('heading')).toBeNull();
   });
 
   it('passes axe with a disclosure open', async () => {

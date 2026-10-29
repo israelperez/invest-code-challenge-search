@@ -16,12 +16,9 @@ type Sink = (level: 'info' | 'warn' | 'error', ...args: unknown[]) => void;
 // Plain bold prefix: readable in light and dark DevTools.
 const consoleSink: Sink = (level, ...args) => console[level]('%c[analytics]', 'font-weight: bold', ...args);
 
-// Display only: the server-side search log is the source of truth (ADR 0002). `enabled` drops product
-// events; problem reports always print, so a problem is never hidden by the flag.
-export function createAnalytics({ enabled, sink = consoleSink }: { enabled: boolean; sink?: Sink }) {
-  const track: Analytics['track'] = (event, data) => {
-    if (enabled) sink('info', event, data);
-  };
+// Display only: the server-side search log is the source of truth (ADR 0002).
+export function createAnalytics({ sink = consoleSink }: { sink?: Sink } = {}) {
+  const track: Analytics['track'] = (event, data) => sink('info', event, data);
   const report: Report = (event, problem) => sink(problem.level, event, ...printArgs(problem));
   return { track, report };
 }

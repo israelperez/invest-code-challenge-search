@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createAnalytics } from '../analytics/analytics';
-import { consoleReport } from '../search/report';
 import { countProblems, createProblemCounter, DISTINCT_CAP } from './problem-counter';
 
 afterEach(() => vi.restoreAllMocks());
@@ -80,10 +79,10 @@ describe('problem counter', () => {
 });
 
 describe('countProblems', () => {
-  it.each([true, false])('counts, keeps entries and still forwards to the sink with analytics %s', (enabled) => {
+  it('counts, keeps entries and still forwards to the sink', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     const counter = createProblemCounter();
-    const sink = enabled ? createAnalytics({ enabled }).report : consoleReport;
+    const sink = createAnalytics().report;
     countProblems(counter, sink)('first_batch_failed', { level: 'error', message: 'failed', entries: ['etf: Failed to fetch'] });
     expect(counter.getSnapshot().first_batch_failed).toEqual({ count: 1, entries: ['etf: Failed to fetch'], distinct: 1 });
     expect(error).toHaveBeenCalledTimes(1);

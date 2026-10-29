@@ -149,9 +149,13 @@ describe('the strings and the new numbers and toggles', () => {
 
   it('round-trips a number, a toggle, a URL through storage', () => {
     const { storage } = memory();
-    const overrides = { idLimit: 200, analytics: false, apiBaseUrl: 'https://api.example.com' };
+    const overrides = { idLimit: 200, recentSearches: false, apiBaseUrl: 'https://api.example.com' };
     saveOverrides(overrides, () => storage);
     expect(loadOverrides(() => storage)).toEqual(overrides);
+  });
+
+  it('ignores stored values for the removed development toggles', () => {
+    expect(stored({ insightsEnabled: false, dataProblemsEnabled: false, analytics: false, idLimit: 200 })).toEqual({ idLimit: 200 });
   });
 
   it.each(['', '   ', 'localhost:8787', 'ftp://example.com', 'http://', 'http://a b', 42])('drops a stored apiBaseUrl of %j', (value) => {

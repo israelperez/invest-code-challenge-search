@@ -1,6 +1,5 @@
 import { Button, CloseButton, Drawer, Flex, IconButton, chakra, Image, Portal, Tabs, Text } from '@chakra-ui/react';
 import { useState } from 'react';
-import { config } from '../config';
 import { InsightsTab } from '../insights/InsightsTab';
 import { SETTINGS_FORM_ID, SettingsTab } from '../settings/SettingsTab';
 import logo from '../assets/betashares-logo.svg';
@@ -12,9 +11,9 @@ const GearIcon = () => (
   </chakra.svg>
 );
 
-// Scrolls with the page. The gear opens the panel that the Insights and Settings tabs fill.
+// Scrolls with the page. The gear (development builds only) opens the panel that the Insights and Settings tabs fill.
 export function Header() {
-  const [tab, setTab] = useState(config.insightsEnabled ? 'insights' : 'settings');
+  const [tab, setTab] = useState('insights');
   return (
     <>
       <Flex bg="bar.bg" color="bar.fg" paddingX="gutter" height="11" alignItems="center">
@@ -24,52 +23,50 @@ export function Header() {
       </Flex>
       <Flex as="header" padding="4" borderBottomWidth="1px" borderColor="divider.canvas" justifyContent="space-between" alignItems="center">
         <Image src={logo} alt="Betashares" height="10" />
-        <Drawer.Root placement="end" size="lg" lazyMount unmountOnExit>
-          <Drawer.Trigger asChild>
-            <IconButton aria-label="Open settings" variant="ghost" rounded="full" boxSize="10" bg="bg.panel" color="ink" borderColor="muted" _hover={{ bg: 'brand.subtle' }}>
-              <GearIcon />
-            </IconButton>
-          </Drawer.Trigger>
-          <Portal>
-            <Drawer.Backdrop />
-            <Drawer.Positioner>
-              <Drawer.Content>
-                <Drawer.Header>
-                  <Drawer.Title>Settings</Drawer.Title>
-                </Drawer.Header>
-                <Drawer.Body>
-                  <Tabs.Root lazyMount unmountOnExit value={tab} onValueChange={(e) => setTab(e.value)}>
-                    <Tabs.List>
-                      {config.insightsEnabled && <Tabs.Trigger value="insights">Insights</Tabs.Trigger>}
-                      {config.settingsEnabled && <Tabs.Trigger value="settings">Settings</Tabs.Trigger>}
-                    </Tabs.List>
-                    {config.insightsEnabled && (
+        {import.meta.env.DEV && (
+          <Drawer.Root placement="end" size="lg" lazyMount unmountOnExit>
+            <Drawer.Trigger asChild>
+              <IconButton aria-label="Open settings" variant="ghost" rounded="full" boxSize="10" bg="bg.panel" color="ink" borderColor="muted" _hover={{ bg: 'brand.subtle' }}>
+                <GearIcon />
+              </IconButton>
+            </Drawer.Trigger>
+            <Portal>
+              <Drawer.Backdrop />
+              <Drawer.Positioner>
+                <Drawer.Content>
+                  <Drawer.Header>
+                    <Drawer.Title>Settings</Drawer.Title>
+                  </Drawer.Header>
+                  <Drawer.Body>
+                    <Tabs.Root lazyMount unmountOnExit value={tab} onValueChange={(e) => setTab(e.value)}>
+                      <Tabs.List>
+                        <Tabs.Trigger value="insights">Insights</Tabs.Trigger>
+                        <Tabs.Trigger value="settings">Settings</Tabs.Trigger>
+                      </Tabs.List>
                       <Tabs.Content value="insights">
                         <InsightsTab />
                       </Tabs.Content>
-                    )}
-                    {config.settingsEnabled && (
                       <Tabs.Content value="settings">
                         <SettingsTab />
                       </Tabs.Content>
-                    )}
-                  </Tabs.Root>
-                </Drawer.Body>
-                {/* The form lives in the Settings tab; the button submits it from here, so it is only present on that tab. */}
-                {tab === 'settings' && config.settingsEnabled && (
-                  <Drawer.Footer>
-                    <Button type="submit" form={SETTINGS_FORM_ID}>
-                      Save and reload
-                    </Button>
-                  </Drawer.Footer>
-                )}
-                <Drawer.CloseTrigger asChild>
-                  <CloseButton aria-label="Close settings" />
-                </Drawer.CloseTrigger>
-              </Drawer.Content>
-            </Drawer.Positioner>
-          </Portal>
-        </Drawer.Root>
+                    </Tabs.Root>
+                  </Drawer.Body>
+                  {/* The form lives in the Settings tab; the button submits it from here, so it is only present on that tab. */}
+                  {tab === 'settings' && (
+                    <Drawer.Footer>
+                      <Button type="submit" form={SETTINGS_FORM_ID}>
+                        Save and reload
+                      </Button>
+                    </Drawer.Footer>
+                  )}
+                  <Drawer.CloseTrigger asChild>
+                    <CloseButton aria-label="Close settings" />
+                  </Drawer.CloseTrigger>
+                </Drawer.Content>
+              </Drawer.Positioner>
+            </Portal>
+          </Drawer.Root>
+        )}
       </Flex>
     </>
   );
