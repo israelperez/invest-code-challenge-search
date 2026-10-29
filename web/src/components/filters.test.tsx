@@ -4,7 +4,6 @@ import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FacetEntry, SearchIndexRequest } from '../../src/api/types';
 import { deferred, fake, fakeApi, fakeFacets, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
-import { config } from '../config';
 
 const isCounts = (body: SearchIndexRequest) => !body.include?.includes('documents');
 const countRequests = (api: FakeApi) => api.searchIndex.mock.calls.filter(([body]) => isCounts(body));
@@ -26,7 +25,7 @@ const openDrawer = async () => {
 const tickOption = async (name: RegExp) => {
   await openDrawer();
   await click(box(name));
-  await tick(config.countsDebounceMs);
+  await tick(0);
   await tick(10);
 };
 
@@ -61,25 +60,37 @@ afterEach(() => {
   cleanup();
 });
 
+// Answers requests whose body matches `hang` only when aborted (rejecting with the abort reason), so a later tick can be seen to cancel them.
+function hangUntilAborted(api: FakeApi, hang: (body: SearchIndexRequest) => boolean) {
+  const base = api.searchIndex.getMockImplementation()!;
+  api.searchIndex.mockImplementation((body, signal) =>
+    hang(body) ? new Promise((_, reject) => signal?.addEventListener('abort', () => reject(signal.reason))) : base(body, signal),
+  );
+}
+const onlyEtf = (body: SearchIndexRequest) => body.kind?.length === 1 && body.kind[0] === 'etf';
+
 describe('Filters', () => {
-  it('sends one counts-only request for two quick ticks', async () => {
+  it('cancels the earlier counts request when a second tick follows, and shows the latest counts', async () => {
     const api = await setup();
     const before = countRequests(api).length;
+    hangUntilAborted(api, (body) => isCounts(body) && onlyEtf(body));
 
     await click(box(/ETFs/));
-    await tick(50);
     await click(box(/Shares \(equities\)/));
-    await tick(config.countsDebounceMs);
+    await tick(10);
 
-    const sent = countRequests(api);
-    expect(sent).toHaveLength(before + 1);
-    expect(sent.at(-1)![0]).toEqual({ kind: ['equity', 'etf'], search_text: 'a', include: ['count', 'facets'] });
+    const sent = countRequests(api).slice(before);
+    expect(sent).toHaveLength(2);
+    expect(sent[0][1]!.aborted).toBe(true);
+    expect(sent[1][1]!.aborted).toBe(false);
+    expect(sent[1][0]).toEqual({ kind: ['equity', 'etf'], search_text: 'a', include: ['count', 'facets'] });
+    expect(screen.getAllByText('834').length).toBeGreaterThan(0);
   });
 
   it('leaves order_by out of the counts request', async () => {
     const api = await setup();
     fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'symbol.asc' } });
-    await tick(config.countsDebounceMs);
+    await tick(0);
     const before = countRequests(api).length;
 
     await tickOption(/ETFs/);
@@ -135,7 +146,7 @@ describe('Filters', () => {
 
     await tickOption(/ETFs/);
     await click(screen.getByRole('button', { name: 'Close filters' }));
-    await tick(config.countsDebounceMs + 10);
+    await tick(10);
 
     expect(resultRequests(api)).toHaveLength(before);
     expect(filtersTrigger()!.textContent).toBe('Filters');
@@ -149,7 +160,7 @@ describe('Filters', () => {
     await click(box(/Shares \(equities\)/));
     await click(box(/Betashares funds only/));
     await click(screen.getByRole('radio', { name: /100 to 500 million/ }));
-    await tick(config.countsDebounceMs);
+    await tick(0);
 
     expect(countRequests(api).at(-1)![0]).toMatchObject({
       kind: ['equity', 'etf'],
@@ -187,7 +198,7 @@ describe('Filters', () => {
     const before = resultRequests(api).length;
 
     await click(screen.getByRole('button', { name: 'Clear filters' }));
-    await tick(config.countsDebounceMs + 10);
+    await tick(10);
 
     expect(box(/ETFs/).checked).toBe(false);
     expect(box(/Shares \(equities\)/).checked).toBe(false);
@@ -230,7 +241,7 @@ describe('Filters', () => {
 
       tablet = true;
       act(() => listeners.forEach(([media, listener]) => listener({ matches: true, media })));
-      await new Promise((resolve) => setTimeout(resolve, config.countsDebounceMs + 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       expect(resultRequests(api)).toHaveLength(requests);
       expect(resultRequests(api).some(([body]) => body.kind)).toBe(false);
@@ -267,7 +278,7 @@ describe('Filters', () => {
         is_flagship_fund: [{ value: 'true', count: 0 }, { value: 'false', count: 5 }],
       },
     }));
-    await tick(config.countsDebounceMs);
+    await tick(0);
     expect(box(/Flagship funds/).disabled).toBe(true);
     expect(box(/Shares \(equities\)/).disabled).toBe(false);
 
@@ -376,7 +387,7 @@ describe('Filters', () => {
 
       await click(showAll());
       await click(screen.getAllByRole('checkbox', { name: /Investors Mutual/ })[1]);
-      await tick(config.countsDebounceMs + 10);
+      await tick(10);
       await tick(10);
 
       expect(countRequests(api).at(-1)![0]).toMatchObject({ issuer: ['investors_mutual'] });
@@ -397,13 +408,12 @@ describe('Filters', () => {
       window.matchMedia = mobileMatchMedia;
     });
 
-    it('applies a tick after the debounce, with no apply button', async () => {
+    it('applies a tick at once, with no apply button', async () => {
       const api = await setup();
       const before = resultRequests(api).length;
 
       await click(box(/ETFs/));
-      expect(resultRequests(api)).toHaveLength(before);
-      await tick(config.countsDebounceMs + 10);
+      await tick(10);
 
       expect(resultRequests(api)).toHaveLength(before + 1);
       expect(resultRequests(api).at(-1)![0]).toMatchObject({ kind: ['etf'], search_text: 'a' });
@@ -437,23 +447,27 @@ describe('Filters', () => {
       const before = resultRequests(api).length;
 
       await click(box(/Acme/));
-      await tick(config.countsDebounceMs + 10);
+      await tick(10);
 
       expect(resultRequests(api)).toHaveLength(before + 1);
       expect(resultRequests(api).at(-1)![0]).toMatchObject({ issuer: ['acme'] });
     });
 
-    it('sends one results request for two quick ticks', async () => {
+    it('cancels the earlier results request when a second tick follows, and shows the latest results', async () => {
       const api = await setup();
       const before = resultRequests(api).length;
+      hangUntilAborted(api, (body) => !isCounts(body) && onlyEtf(body));
 
       await click(box(/ETFs/));
-      await tick(50);
       await click(box(/Shares \(equities\)/));
-      await tick(config.countsDebounceMs + 10);
+      await tick(10);
 
-      expect(resultRequests(api)).toHaveLength(before + 1);
-      expect(resultRequests(api).at(-1)![0]).toMatchObject({ kind: ['equity', 'etf'] });
+      const sent = resultRequests(api).slice(before);
+      expect(sent).toHaveLength(2);
+      expect(sent[0][1]!.aborted).toBe(true);
+      expect(sent[1][1]!.aborted).toBe(false);
+      expect(sent[1][0]).toMatchObject({ kind: ['equity', 'etf'] });
+      expect(rows().length).toBeGreaterThan(0);
     });
   });
 });

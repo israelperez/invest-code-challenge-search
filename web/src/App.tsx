@@ -20,7 +20,7 @@ export function App() {
   // Sort is independent of the term, so a new search keeps it.
   const [orderBy, setOrderBy] = useState<OrderBy>();
   // Ticks edit `pending`; `applied` is what the results use. Beside the results (tablet and up) it follows
-  // `pending` after the debounce; on mobile only the button copies it.
+  // `pending` at once; on mobile only the button copies it.
   const [applied, setApplied] = useState<Filters>({});
   const [pending, setPending] = useState<Filters>({});
   // shortcut: cast because Chakra's generated breakpoint names still say sm..2xl here, switch to `chakra typegen` if more hooks need them.
@@ -30,10 +30,12 @@ export function App() {
     if (live) setPending(applied);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change of `live` resets
   }, [live]);
+  // The render that flips `live` is skipped: the effect above is discarding the drawer's ticks, so they must not be applied.
+  const wasLive = useRef(live);
   useEffect(() => {
-    if (!live) return;
-    const timer = setTimeout(() => setApplied(pending), config.countsDebounceMs);
-    return () => clearTimeout(timer);
+    const flipped = live && !wasLive.current;
+    wasLive.current = live;
+    if (live && !flipped) setApplied(pending);
   }, [live, pending]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const state = term === null ? null : { term, filters: applied, order_by: orderBy };
