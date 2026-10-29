@@ -42,7 +42,7 @@ export const config = {
   suggestionSkeletonRows: 1,
   // settingDescriptions.popularMobile, popularTablet and popularDesktop (the theme's tablet and desktop breakpoints); the request asks for the largest.
   popularShown: { mobile: 6, tablet: 8, desktop: 13 },
-  // The most popular pills any size may show: the API seed holds 15 popular searches, so a higher count would show gaps.
+  // The most popular pills any size may show. This is a display cap; the API seed holds 43 popular searches.
   popularMax: 15,
   // settingDescriptions.popularSearchOneLine
   popularSearchOneLine: true,
