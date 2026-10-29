@@ -88,11 +88,10 @@ describe('Search logging', () => {
   it('shows nothing to the user when logging fails', async () => {
     const api = fakeApi();
     api.logSearch.mockRejectedValue(new TypeError('Failed to fetch'));
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     renderApp(api);
     await search('b');
 
-    await waitFor(() => expect(error).toHaveBeenCalled());
+    await waitFor(() => expect(api.logSearch).toHaveBeenCalled());
     expect(rows()).toHaveLength(15);
     expect(screen.queryByRole('alert')).toBeNull();
   });

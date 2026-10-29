@@ -8,7 +8,7 @@ import { useSearchBackend } from '../search/search-source-context';
 // Spacing tokens only: a width that isn't one (e.g. '18') is dropped and the skeleton collapses to nothing.
 const SKELETON_WIDTHS = ['16', '20', '14', '24', '20', '16'];
 
-// An empty or failed fetch (no message, just a console error) falls back to the featured Betashares ETFs under their own
+// An empty or failed fetch (no message; the API client reports the failure) falls back to the featured Betashares ETFs under their own
 // heading, since nobody searched those.
 export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
   const { popular } = useSearchBackend();
@@ -33,10 +33,7 @@ export function PopularPills({ onPick }: { onPick: (term: string) => void }) {
       .terms()
       .then((found) => found.map((term) => term.label))
       .then((terms) => (terms.length ? { heading: 'Popular searches', terms } : featured))
-      .catch((error) => {
-        console.error('Loading popular searches failed', error);
-        return featured;
-      })
+      .catch(() => featured)
       .then((next) => current && setLabels(next));
     return () => {
       current = false;

@@ -240,15 +240,12 @@ describe('Stale and failed lookups', () => {
     expect(screen.getByRole('option', { name: /GLOBE/, hidden: true })).toBeTruthy();
   });
 
-  it('shows and announces "Suggestions unavailable" when both lookups fail, and logs it', async () => {
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it('shows and announces "Suggestions unavailable" when both lookups fail', async () => {
     api.facetIssuer.mockRejectedValue(new Error('issuers down'));
     api.suggestInstruments.mockRejectedValue(new Error('search down'));
     await open('glo');
 
     expect(status()).toBe('Suggestions unavailable');
-    expect(error).toHaveBeenCalled();
-    error.mockRestore();
   });
 
   it('does not log an aborted lookup', async () => {

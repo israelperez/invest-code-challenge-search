@@ -1,10 +1,11 @@
 import { ChakraProvider } from '@chakra-ui/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { createAnalytics } from './analytics/analytics';
 import { createApiClient } from './api/client';
+import { createQueryClient } from './api/query-client';
 import { countProblems, createProblemCounter } from './insights/problem-counter';
 import { config, popularRequestLimit } from './config';
 import { applySettings } from './settings/settings';
@@ -21,12 +22,12 @@ import { system } from './theme';
 // Demo settings override config before anything below reads it.
 applySettings();
 
-const queryClient = new QueryClient();
-const api = createApiClient(config.apiBaseUrl);
+const queryClient = createQueryClient();
 const analytics = createAnalytics({ enabled: config.analytics });
 // Flag off: problems print as plain console output, as before analytics existed.
 const problems = createProblemCounter();
 const report = countProblems(problems, config.analytics ? analytics.report : consoleReport);
+const api = createApiClient(config.apiBaseUrl, { report });
 const backend = {
   api, source: createSearchSource(api, { ...config, report }),
   suggestions: createSuggestionSource(api, { termLimit: config.suggestionTermLimit }),

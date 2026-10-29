@@ -21,6 +21,7 @@ const LABELS = [
   'First batch failed to load',
   'Load more failed',
   'Restart after a stale snapshot failed',
+  'API calls that failed',
   'Logos that failed to load',
   'Instruments with no display name',
 ];
@@ -29,7 +30,7 @@ const rowTexts = () => Array.from(screen.getAllByRole('list')[0].children).map((
 const rowOf = (label: string) => screen.getByText(label).closest('li')!;
 
 describe('Data problems section', () => {
-  it('shows the heading, the demo banner and seven rows in order, all at 0', () => {
+  it('shows the heading, the demo banner and eight rows in order, all at 0', () => {
     render(<DataProblems />, { wrapper: problemsWrapper() });
     expect(screen.getByRole('heading', { name: 'Data problems (this session, demo)' })).toBeTruthy();
     expect(screen.getByText('Demo data, development only. A real build would report these to an error-reporting service.')).toBeTruthy();
@@ -41,9 +42,9 @@ describe('Data problems section', () => {
     (['batch_ids_missing', 'logo_failed', 'logo_failed', 'snapshot_stale', 'late_response_discarded'] as const).forEach((e) => problems.record(e));
     render(<DataProblems />, { wrapper: problemsWrapper({ problems }) });
     const texts = rowTexts();
-    expect(texts).toHaveLength(7);
+    expect(texts).toHaveLength(8);
     expect(texts[0]).toBe('Batches that reported missing IDs1');
-    expect(texts[5]).toBe('Logos that failed to load2');
+    expect(texts[6]).toBe('Logos that failed to load2');
   });
 
   it('updates live when a problem is recorded', () => {

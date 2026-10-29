@@ -230,11 +230,9 @@ describe('Popular search pills', () => {
   it('fall back to the featured list, with no error text, when the fetch fails', async () => {
     const api = fakeApi();
     api.popular.mockRejectedValue(new Error('down'));
-    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     renderApp(api);
 
     await screen.findByRole('region', { name: 'Featured Betashares ETFs' });
-    expect(log).toHaveBeenCalled();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText(/fail|error|unavailable/i)).toBeNull();
   });

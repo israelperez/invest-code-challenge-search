@@ -66,8 +66,7 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
     popular
       .terms()
       .then((found) => current && setPopularTerms(found.map((term) => term.label)))
-      .catch((error) => {
-        console.error('Loading popular searches failed', error);
+      .catch(() => {
         if (current) setPopularTerms(noTerms);
       });
     return () => {
@@ -91,9 +90,8 @@ export function SearchForm({ onSearch, showPopular }: { onSearch: (term: string,
           if (!controller.signal.aborted) setLookup({ status: 'done', items: toItems(found), for: text });
         })
         .catch((error) => {
-          // An aborted lookup is superseded: no state change, no log.
+          // An aborted lookup is superseded: no state change. The API client has already reported a real failure.
           if (controller.signal.aborted) return;
-          console.error('Loading suggestions failed', error);
           setLookup({ status: 'failed', items: [], for: text });
         });
     }, config.suggestionDebounceMs);

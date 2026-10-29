@@ -7,6 +7,7 @@ export type ProblemEvent =
   | 'restart_failed'
   | 'first_batch_failed'
   | 'load_more_failed'
+  | 'api_call_failed'
   | 'logo_failed'
   | 'no_display_name';
 

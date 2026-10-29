@@ -2,7 +2,7 @@
 import '../../tests/component/jsdom-setup';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/client';
+import { ApiError, createApiClient } from '../api/client';
 import { catalogues, deferred, doc, fake, fakeApi, renderApp, rows, search, skeletonRows, type FakeApi } from '../../tests/component/app-harness';
 import { config } from '../config';
 
@@ -240,5 +240,38 @@ describe('Load more', () => {
 
     await screen.findByText('Something went wrong');
     expect(report).toHaveBeenCalledWith('first_batch_failed', { level: 'error', message: 'Loading the first batch failed', detail: expect.objectContaining({ status: 500 }), entries: [expect.stringMatching(/^a: boom$/)] });
+  });
+});
+
+describe('retry layers', () => {
+  it('one outage is retried only by the API client: apiRetries + 1 attempts and a single first_batch_failed', async () => {
+    const api = fakeApi();
+    const base = api.searchIndex.getMockImplementation()!;
+    let attempts = 0;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const path = url.replace('http://x', '');
+      const body = init?.body ? JSON.parse(init.body as string) : {};
+      if (path === '/search/index') {
+        if (body.include?.includes('documents')) {
+          attempts++;
+          return new Response('{}', { status: 503 });
+        }
+        return Response.json(await base(body));
+      }
+      if (path === '/version') return Response.json({ indexed_at: fake.indexedAt });
+      if (path.startsWith('/popular')) return Response.json(await api.popular(1));
+      return Response.json([]);
+    });
+    const report = vi.fn();
+    const real = createApiClient('http://x', { report, retries: config.apiRetries, retryBaseMs: 1, timeoutMs: 1000 });
+    renderApp(real as unknown as FakeApi, { report });
+    fireEvent.change(screen.getByLabelText('Search shares and ETFs'), { target: { value: 'a' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await screen.findByText('Something went wrong');
+    expect(attempts).toBe(config.apiRetries + 1);
+    expect(report.mock.calls.filter(([event]) => event === 'first_batch_failed')).toHaveLength(1);
+    expect(report.mock.calls.filter(([event]) => event === 'api_call_failed')).toHaveLength(1);
+    vi.unstubAllGlobals();
   });
 });

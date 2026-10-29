@@ -12,6 +12,7 @@ const ROWS: [ProblemEvent, string][] = [
   ['first_batch_failed', 'First batch failed to load'],
   ['load_more_failed', 'Load more failed'],
   ['restart_failed', 'Restart after a stale snapshot failed'],
+  ['api_call_failed', 'API calls that failed'],
   ['logo_failed', 'Logos that failed to load'],
   ['no_display_name', 'Instruments with no display name'],
 ];
